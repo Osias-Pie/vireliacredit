@@ -40,6 +40,7 @@ export const submitApplication = createServerFn({ method: "POST" })
     const { data: inserted, error } = await supabaseAdmin
       .from("applications")
       .insert({
+        reference: "",
         last_name: data.last_name,
         first_name: data.first_name,
         gender: data.gender,
