@@ -53,7 +53,7 @@ export const Route = createFileRoute("/apply")({
 });
 
 function ApplyPage() {
-  const { t, lang } = useI18n();
+  const { t, locale } = useI18n();
   const navigate = useNavigate();
   const search = useSearch({ from: "/apply" });
   const [submitting, setSubmitting] = useState(false);
@@ -81,7 +81,7 @@ function ApplyPage() {
         data: {
           ...payload,
           income: payload.income ? Number(payload.income) : null,
-          language: lang,
+          language: locale,
         },
       });
       toast.success("Demande envoyée avec succès");
@@ -122,7 +122,7 @@ function ApplyPage() {
           className="mx-auto mt-12 max-w-3xl space-y-8"
           noValidate
         >
-          <FormCard title={t("apply.personal")}>
+          <FormCard title={t("apply.section.personal")}>
             <Grid>
               <Field label="Nom" error={err.last_name?.message}>
                 <Input {...form.register("last_name")} />
@@ -167,7 +167,7 @@ function ApplyPage() {
             </Grid>
           </FormCard>
 
-          <FormCard title={t("apply.professional")}>
+          <FormCard title={t("apply.section.professional")}>
             <Grid>
               <Field label="Profession" error={err.profession?.message}>
                 <Input {...form.register("profession")} />
@@ -181,7 +181,7 @@ function ApplyPage() {
             </Grid>
           </FormCard>
 
-          <FormCard title={t("apply.project")}>
+          <FormCard title={t("apply.section.project")}>
             <Grid>
               <Field label="Programme choisi" error={err.program?.message}>
                 <Select
