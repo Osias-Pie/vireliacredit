@@ -1,24 +1,29 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { PageLayout } from "@/components/layout/PageLayout";
+import { Hero } from "@/components/sections/Hero";
+import { ProgramsSection } from "@/components/sections/ProgramsSection";
+import { WhyChoose } from "@/components/sections/WhyChoose";
+import { ProcessTimeline } from "@/components/sections/ProcessTimeline";
+import { Stats } from "@/components/sections/Stats";
+import { Testimonials } from "@/components/sections/Testimonials";
+import { FAQSection } from "@/components/sections/FAQSection";
+import { CTABand } from "@/components/sections/CTABand";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
   component: Index,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
 function Index() {
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
+    <PageLayout>
+      <Hero />
+      <Stats />
+      <ProgramsSection compact />
+      <WhyChoose />
+      <ProcessTimeline />
+      <Testimonials />
+      <FAQSection compact />
+      <CTABand />
+    </PageLayout>
   );
 }
