@@ -14,6 +14,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { I18nProvider } from "@/lib/i18n/context";
 import { CurrencyProvider } from "@/lib/currency/context";
 import { Toaster } from "@/components/ui/sonner";
+import { ThemeProvider } from "@/lib/theme/context";
 
 function NotFoundComponent() {
   return (
