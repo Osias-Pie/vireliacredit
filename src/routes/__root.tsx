@@ -88,7 +88,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "Organisme international proposant des programmes de financement transparents pour entrepreneurs, familles et associations. Étudiez votre éligibilité en quelques minutes.",
       },
       { name: "theme-color", content: "#0B4F8C" },
-      { property: "og:title", content: "SubvenFinance — Financements internationaux" },
+      { property: "og:title", content: "SubvenFinance — Financements internationaux transparents" },
       {
         property: "og:description",
         content:
@@ -96,6 +96,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "SubvenFinance — Financements internationaux transparents" },
+      { name: "description", content: "Global Funding Bridge is a professional web platform for an international funding organization." },
+      { property: "og:description", content: "Global Funding Bridge is a professional web platform for an international funding organization." },
+      { name: "twitter:description", content: "Global Funding Bridge is a professional web platform for an international funding organization." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/ce52ef4c-c5f2-43bd-a301-e53bc38ac3dd/id-preview-1c594538--a534703a-699c-46eb-a687-ee4c05848c96.lovable.app-1782983182757.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/ce52ef4c-c5f2-43bd-a301-e53bc38ac3dd/id-preview-1c594538--a534703a-699c-46eb-a687-ee4c05848c96.lovable.app-1782983182757.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
