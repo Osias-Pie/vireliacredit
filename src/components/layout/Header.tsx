@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/brand/Logo";
 import { LanguageSelector } from "./LanguageSelector";
 import { CurrencySelector } from "./CurrencySelector";
+import { ThemeToggle } from "./ThemeToggle";
 import { useI18n } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 
@@ -61,6 +62,7 @@ export function Header() {
           <div className="hidden sm:flex sm:items-center sm:gap-1">
             <LanguageSelector />
             <CurrencySelector />
+            <ThemeToggle />
           </div>
           <Button asChild size="sm" className="hidden rounded-full px-5 shadow-[var(--shadow-elegant)] md:inline-flex">
             <Link to="/apply">{t("nav.apply")}</Link>
@@ -93,6 +95,7 @@ export function Header() {
             <div className="mt-2 flex items-center gap-2 border-t border-border pt-3">
               <LanguageSelector />
               <CurrencySelector />
+              <ThemeToggle />
             </div>
             <Button asChild className="mt-3 rounded-full">
               <Link to="/apply">{t("nav.apply")}</Link>
