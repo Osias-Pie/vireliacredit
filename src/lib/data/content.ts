@@ -5,6 +5,7 @@ export interface Testimonial {
   quote: string;
   program: string;
   rating: number;
+  avatar: string;
 }
 
 export const TESTIMONIALS: Testimonial[] = [
@@ -16,6 +17,7 @@ export const TESTIMONIALS: Testimonial[] = [
       "Un accompagnement exceptionnel du dépôt jusqu'à la réponse finale. L'équipe a compris mon projet et m'a permis de lancer mon atelier avec sérénité.",
     program: "Programme Entrepreneurs",
     rating: 5,
+    avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=256&h=256&fit=crop&crop=faces&auto=format&q=80",
   },
   {
     name: "Julien Moreau",
@@ -25,24 +27,27 @@ export const TESTIMONIALS: Testimonial[] = [
       "Réactivité, transparence et professionnalisme. Le suivi par e-mail est ultra clair, on sait toujours où on en est.",
     program: "Programme PME",
     rating: 5,
+    avatar: "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=256&h=256&fit=crop&crop=faces&auto=format&q=80",
   },
   {
     name: "Sofia Rodríguez",
-    role: "Doctorante",
+    role: "Doctorante en économie",
     country: "Espagne",
     quote:
       "Grâce au Programme Éducation, j'ai pu financer ma thèse à l'étranger. Une expérience humaine avant tout.",
     program: "Programme Éducation",
     rating: 5,
+    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=256&h=256&fit=crop&crop=faces&auto=format&q=80",
   },
   {
     name: "Kwame Osei",
-    role: "Coopérative Kakao Plus",
+    role: "Directeur, Coopérative Kakao Plus",
     country: "Ghana",
     quote:
       "Notre coopérative a doublé sa production grâce au Programme Agriculture. Merci pour la confiance accordée.",
     program: "Programme Agriculture",
     rating: 5,
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=256&h=256&fit=crop&crop=faces&auto=format&q=80",
   },
   {
     name: "Emma Van Berg",
@@ -52,15 +57,17 @@ export const TESTIMONIALS: Testimonial[] = [
       "Un partenaire fiable pour les projets à impact social. Nous recommandons vivement leur programme solidaire.",
     program: "Programme Solidaire",
     rating: 5,
+    avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=256&h=256&fit=crop&crop=faces&auto=format&q=80",
   },
   {
     name: "Marco Ferretti",
-    role: "Architecte",
+    role: "Architecte associé",
     country: "Italie",
     quote:
       "Rapide, sérieux, humain. J'ai pu concrétiser mon projet immobilier familial dans d'excellentes conditions.",
     program: "Programme Habitat",
     rating: 5,
+    avatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=256&h=256&fit=crop&crop=faces&auto=format&q=80",
   },
 ];
 
