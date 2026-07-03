@@ -131,6 +131,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      submit_application: { Args: { p: Json }; Returns: string }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
