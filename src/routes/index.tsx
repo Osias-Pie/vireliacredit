@@ -6,6 +6,7 @@ import { WhyChoose } from "@/components/sections/WhyChoose";
 import { ProcessTimeline } from "@/components/sections/ProcessTimeline";
 import { Stats } from "@/components/sections/Stats";
 import { Testimonials } from "@/components/sections/Testimonials";
+import { ProofsGallery } from "@/components/sections/ProofsGallery";
 import { FAQSection } from "@/components/sections/FAQSection";
 import { CTABand } from "@/components/sections/CTABand";
 
@@ -21,6 +22,7 @@ function Index() {
       <ProgramsSection compact />
       <WhyChoose />
       <ProcessTimeline />
+      <ProofsGallery />
       <Testimonials />
       <FAQSection compact />
       <CTABand />
