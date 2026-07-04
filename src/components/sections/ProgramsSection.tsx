@@ -10,6 +10,9 @@ interface ProgramsProps {
   compact?: boolean;
 }
 
+const MIN_AMOUNT_EUR = 5000;
+const MAX_AMOUNT_EUR = 500000000;
+
 export function ProgramsSection({ compact = false }: ProgramsProps) {
   const { t } = useI18n();
   const { format } = useCurrency();
