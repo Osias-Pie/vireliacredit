@@ -179,7 +179,7 @@ const en: Partial<Record<TranslationKey, string>> = {
   "home.cta.subtitle": "Submit your application in minutes. An advisor will reply by email.",
   "programs.title": "Our funding programs",
   "programs.subtitle": "A program for every profile, every project, every ambition.",
-  "programs.max_amount": "Maximum amount",
+  "programs.max_amount": "Non-refundable grant",
   "programs.apply": "Apply for this program",
   "process.title": "Our 4-step process",
   "process.subtitle": "A clear path, rigorous follow-up, a guaranteed answer.",
