@@ -52,8 +52,8 @@ export function ProgramsSection({ compact = false }: ProgramsProps) {
                 <p className="text-xs uppercase tracking-wider text-muted-foreground">
                   {t("programs.max_amount")}
                 </p>
-                <p className="mt-1 text-2xl font-bold text-primary">
-                  {format(p.maxAmountEUR)}
+                <p className="mt-1 text-lg font-bold text-primary sm:text-xl">
+                  {format(MIN_AMOUNT_EUR)} – {format(MAX_AMOUNT_EUR)}
                 </p>
                 <p className="mt-0.5 text-xs text-muted-foreground">{p.audience}</p>
               </div>
