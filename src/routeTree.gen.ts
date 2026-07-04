@@ -25,7 +25,6 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
-import { Route as ApiPublicConfirmAdminRouteImport } from './routes/api/public/confirm-admin'
 
 const TestimonialsRoute = TestimonialsRouteImport.update({
   id: '/testimonials',
@@ -106,11 +105,6 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const ApiPublicConfirmAdminRoute = ApiPublicConfirmAdminRouteImport.update({
-  id: '/api/public/confirm-admin',
-  path: '/api/public/confirm-admin',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -128,7 +122,6 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/testimonials': typeof TestimonialsRoute
   '/admin': typeof AuthenticatedAdminRoute
-  '/api/public/confirm-admin': typeof ApiPublicConfirmAdminRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -146,7 +139,6 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/testimonials': typeof TestimonialsRoute
   '/admin': typeof AuthenticatedAdminRoute
-  '/api/public/confirm-admin': typeof ApiPublicConfirmAdminRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -166,7 +158,6 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/testimonials': typeof TestimonialsRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
-  '/api/public/confirm-admin': typeof ApiPublicConfirmAdminRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -186,7 +177,6 @@ export interface FileRouteTypes {
     | '/terms'
     | '/testimonials'
     | '/admin'
-    | '/api/public/confirm-admin'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -204,7 +194,6 @@ export interface FileRouteTypes {
     | '/terms'
     | '/testimonials'
     | '/admin'
-    | '/api/public/confirm-admin'
   id:
     | '__root__'
     | '/'
@@ -223,7 +212,6 @@ export interface FileRouteTypes {
     | '/terms'
     | '/testimonials'
     | '/_authenticated/admin'
-    | '/api/public/confirm-admin'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -242,7 +230,6 @@ export interface RootRouteChildren {
   ProgramsRoute: typeof ProgramsRoute
   TermsRoute: typeof TermsRoute
   TestimonialsRoute: typeof TestimonialsRoute
-  ApiPublicConfirmAdminRoute: typeof ApiPublicConfirmAdminRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -359,13 +346,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/api/public/confirm-admin': {
-      id: '/api/public/confirm-admin'
-      path: '/api/public/confirm-admin'
-      fullPath: '/api/public/confirm-admin'
-      preLoaderRoute: typeof ApiPublicConfirmAdminRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
@@ -396,7 +376,6 @@ const rootRouteChildren: RootRouteChildren = {
   ProgramsRoute: ProgramsRoute,
   TermsRoute: TermsRoute,
   TestimonialsRoute: TestimonialsRoute,
-  ApiPublicConfirmAdminRoute: ApiPublicConfirmAdminRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
