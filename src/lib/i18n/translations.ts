@@ -58,7 +58,7 @@ const fr = {
 
   "programs.title": "Nos programmes de financement",
   "programs.subtitle": "Un programme pour chaque profil, chaque projet, chaque ambition.",
-  "programs.max_amount": "Montant maximum",
+  "programs.max_amount": "Aide non remboursable",
   "programs.apply": "Postuler à ce programme",
 
   "process.title": "Notre processus en 4 étapes",
