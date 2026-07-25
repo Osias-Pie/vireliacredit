@@ -11,8 +11,8 @@ export const LOCALES = [
 export type Locale = (typeof LOCALES)[number]["code"];
 
 const fr = {
-  "brand.name": "Global Finance Initiative",
-  "brand.tagline": "Financer les projets qui transforment le monde",
+  "brand.name": "Golden Grant Hub",
+  "brand.tagline": "Connecter les idées, financer l'impact",
 
   "nav.home": "Accueil",
   "nav.about": "À propos",
@@ -140,8 +140,8 @@ const fr = {
   "footer.terms": "Conditions d'utilisation",
   "footer.tagline": "Financer, accompagner, transformer.",
 
-  "meta.home.title": "Global Finance Initiative — Financements internationaux",
-  "meta.home.description": "Organisme international de financement : programmes dédiés aux entrepreneurs, associations et particuliers. Déposez votre demande en ligne.",
+  "meta.home.title": "Golden Grant Hub — Financements internationaux",
+  "meta.home.description": "Golden Grant Hub : plateforme internationale de subventions et financements pour entrepreneurs, associations et particuliers. Déposez votre demande en ligne.",
 } as const;
 
 export type TranslationKey = keyof typeof fr;
@@ -206,8 +206,8 @@ const en: Partial<Record<TranslationKey, string>> = {
   "confirmation.reference": "File reference",
   "confirmation.status": "Initial status",
   "footer.rights": "All rights reserved.",
-  "meta.home.title": "Global Finance Initiative — International funding",
-  "meta.home.description": "International funding organization: programs for entrepreneurs, associations and individuals. Apply online.",
+  "meta.home.title": "Golden Grant Hub — International grants & funding",
+  "meta.home.description": "Golden Grant Hub connects entrepreneurs, associations and individuals with international grants and funding programs. Apply online.",
 };
 
 const es: Partial<Record<TranslationKey, string>> = {
