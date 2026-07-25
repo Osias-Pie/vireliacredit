@@ -11,7 +11,7 @@ export const Route = createFileRoute("/privacy")({ component: () => (
       </p>
       <p>
         Conformément au RGPD, vous disposez d'un droit d'accès, de rectification et de
-        suppression sur vos données. Contactez-nous à privacy@subvenfinance.org.
+        suppression sur vos données. Contactez-nous à privacy@goldengranthub.com.
       </p>
     </div>
   </SimplePage>

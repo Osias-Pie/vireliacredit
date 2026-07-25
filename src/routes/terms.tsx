@@ -6,7 +6,7 @@ export const Route = createFileRoute("/terms")({ component: () => (
     <div className="prose prose-slate mx-auto max-w-3xl">
       <p>
         L'accès à la plateforme est réservé aux personnes majeures. Toute demande doit
-        être sincère et documentée. SubvenFinance se réserve le droit de refuser tout
+        être sincère et documentée. Golden Grant Hub se réserve le droit de refuser tout
         dossier ne respectant pas les conditions d'éligibilité.
       </p>
     </div>

@@ -81,31 +81,35 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "SubvenFinance — Financements internationaux transparents" },
+      { title: "Golden Grant Hub — International Grants & Funding" },
       {
         name: "description",
         content:
-          "Organisme international proposant des programmes de financement transparents pour entrepreneurs, familles et associations. Étudiez votre éligibilité en quelques minutes.",
+          "Golden Grant Hub connects entrepreneurs, associations and individuals with international grants, scholarships and funding programs. Check your eligibility in minutes.",
       },
-      { name: "theme-color", content: "#0B4F8C" },
-      { property: "og:title", content: "SubvenFinance — Financements internationaux transparents" },
+      { name: "application-name", content: "Golden Grant Hub" },
+      { name: "apple-mobile-web-app-title", content: "Golden Grant Hub" },
+      { name: "theme-color", content: "#0B2545" },
+      { property: "og:site_name", content: "Golden Grant Hub" },
+      { property: "og:title", content: "Golden Grant Hub — International Grants & Funding" },
       {
         property: "og:description",
         content:
-          "Découvrez nos programmes de financement et déposez votre demande en toute confiance.",
+          "Discover international grants, scholarships and funding programs. Trusted, transparent, global.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "SubvenFinance — Financements internationaux transparents" },
-      { name: "description", content: "Global Funding Bridge is a professional web platform for an international funding organization." },
-      { property: "og:description", content: "Global Funding Bridge is a professional web platform for an international funding organization." },
-      { name: "twitter:description", content: "Global Funding Bridge is a professional web platform for an international funding organization." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/ce52ef4c-c5f2-43bd-a301-e53bc38ac3dd/id-preview-1c594538--a534703a-699c-46eb-a687-ee4c05848c96.lovable.app-1782983182757.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/ce52ef4c-c5f2-43bd-a301-e53bc38ac3dd/id-preview-1c594538--a534703a-699c-46eb-a687-ee4c05848c96.lovable.app-1782983182757.png" },
+      { name: "twitter:title", content: "Golden Grant Hub — International Grants & Funding" },
+      {
+        name: "twitter:description",
+        content:
+          "Discover international grants, scholarships and funding programs. Trusted, transparent, global.",
+      },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: "/favicon.png", type: "image/png" },
+      { rel: "apple-touch-icon", href: "/favicon.png" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {

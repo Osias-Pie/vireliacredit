@@ -33,7 +33,7 @@ export function Footer() {
             <ul className="mt-4 space-y-3 text-sm text-muted-foreground">
               <li className="flex items-start gap-2.5">
                 <Mail className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                <span>contact@global-finance.example</span>
+                <span>contact@goldengranthub.com</span>
               </li>
               <li className="flex items-start gap-2.5">
                 <Phone className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
@@ -57,7 +57,7 @@ export function Footer() {
         </div>
 
         <div className="mt-14 flex flex-col items-start justify-between gap-4 border-t border-border pt-8 text-xs text-muted-foreground sm:flex-row sm:items-center">
-          <span>© {year} Global Finance Initiative. {t("footer.rights")}</span>
+          <span>© {year} Golden Grant Hub. {t("footer.rights")}</span>
           <span>Made with care in Paris · Genève · Dakar</span>
         </div>
       </div>

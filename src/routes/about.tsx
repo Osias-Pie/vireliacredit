@@ -8,7 +8,7 @@ export const Route = createFileRoute("/about")({ component: () => (
   >
     <div className="prose prose-slate mx-auto max-w-3xl">
       <p>
-        SubvenFinance est un organisme international indépendant qui accompagne les
+        Golden Grant Hub est un organisme international indépendant qui accompagne les
         entrepreneurs, particuliers, associations et PME dans le financement de leurs
         projets. Nous ne sommes pas une banque : nous mettons en relation les porteurs de
         projets avec des programmes de financement adaptés, et instruisons chaque dossier
