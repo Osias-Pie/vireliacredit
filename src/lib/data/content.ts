@@ -78,7 +78,7 @@ export interface FaqItem {
 
 export const FAQS: FaqItem[] = [
   {
-    q: "Global Finance Initiative est-il une banque ?",
+    q: "Golden Grant Hub est-il une banque ?",
     a: "Non. Nous sommes un organisme international qui met en relation les porteurs de projets avec des programmes de financement adaptés. Nous ne délivrons pas de crédit bancaire.",
   },
   {

@@ -5,7 +5,7 @@ import { SimplePage } from "@/components/layout/SimplePage";
 export const Route = createFileRoute("/contact")({ component: () => (
   <SimplePage title="Contact" subtitle="Notre équipe vous répond sous 24 à 72h ouvrées.">
     <div className="mx-auto grid max-w-4xl gap-6 sm:grid-cols-3">
-      <InfoCard icon={<Mail className="h-5 w-5" />} label="Email" value="contact@subvenfinance.org" />
+      <InfoCard icon={<Mail className="h-5 w-5" />} label="Email" value="contact@goldengranthub.com" />
       <InfoCard icon={<Phone className="h-5 w-5" />} label="Téléphone" value="+33 1 84 60 00 00" />
       <InfoCard icon={<MapPin className="h-5 w-5" />} label="Siège" value="Paris, France" />
     </div>
