@@ -46,9 +46,9 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export const Route = createFileRoute("/apply")({
-  validateSearch: (s: Record<string, unknown>) => ({
-    program: typeof s.program === "string" ? s.program : undefined,
-  }),
+  validateSearch: (s: Record<string, unknown>): { program?: string } =>
+    typeof s.program === "string" ? { program: s.program } : {},
+
   component: ApplyPage,
 });
 

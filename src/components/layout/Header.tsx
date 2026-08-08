@@ -26,12 +26,14 @@ export function Header() {
 
   const links: { to: string; label: string }[] = [
     { to: "/", label: t("nav.home") },
-    { to: "/programs", label: t("nav.programs") },
-    { to: "/about", label: t("nav.about") },
+    { to: "/programs", label: t("nav.solutions") },
+    { to: "/eligibility", label: t("nav.eligibility") },
     { to: "/process", label: t("nav.process") },
     { to: "/faq", label: t("nav.faq") },
+    { to: "/about", label: t("nav.about") },
     { to: "/contact", label: t("nav.contact") },
   ];
+
 
   return (
     <header
