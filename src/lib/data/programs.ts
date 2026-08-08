@@ -1,80 +1,78 @@
 import {
-  Briefcase, Home, GraduationCap, Sprout, Building2, Heart,
+  Wallet, Briefcase, Building2, Home, GraduationCap, Lightbulb,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-export interface Program {
+/** Loan solutions (repayable loans). Commercial conditions live in src/config/markets.ts. */
+export interface LoanProduct {
   slug: string;
   icon: LucideIcon;
   title: string;
   description: string;
-  maxAmountEUR: number;
   gradient: string;
   audience: string;
 }
 
-export const PROGRAMS: Program[] = [
+export const LOAN_PRODUCTS: LoanProduct[] = [
   {
-    slug: "entrepreneur",
-    icon: Briefcase,
-    title: "Programme Entrepreneurs",
+    slug: "personal",
+    icon: Wallet,
+    title: "Prêt personnel",
     description:
-      "Financement dédié à la création et au développement d'entreprises innovantes, TPE et startups à impact.",
-    maxAmountEUR: 250000,
+      "Un prêt remboursable pour financer un besoin privé : équipement, imprévu, mobilité ou consolidation.",
     gradient: "from-[oklch(0.42_0.13_253)] to-[oklch(0.55_0.14_240)]",
-    audience: "Créateurs d'entreprise",
-  },
-  {
-    slug: "immobilier",
-    icon: Home,
-    title: "Programme Habitat",
-    description:
-      "Accès facilité au financement pour l'acquisition, la rénovation ou l'aménagement d'un logement principal.",
-    maxAmountEUR: 400000,
-    gradient: "from-[oklch(0.5_0.14_240)] to-[oklch(0.65_0.13_220)]",
     audience: "Particuliers",
   },
   {
-    slug: "education",
-    icon: GraduationCap,
-    title: "Programme Éducation",
+    slug: "professional",
+    icon: Briefcase,
+    title: "Prêt professionnel",
     description:
-      "Bourses et financements pour les études supérieures, formations professionnelles et certifications internationales.",
-    maxAmountEUR: 80000,
+      "Financement remboursable destiné aux indépendants et professions libérales pour leur activité.",
+    gradient: "from-[oklch(0.5_0.14_240)] to-[oklch(0.65_0.13_220)]",
+    audience: "Indépendants",
+  },
+  {
+    slug: "business",
+    icon: Building2,
+    title: "Prêt entreprise",
+    description:
+      "Prêt remboursable pour les TPE et PME : trésorerie, équipement ou développement commercial.",
+    gradient: "from-[oklch(0.32_0.11_255)] to-[oklch(0.45_0.13_245)]",
+    audience: "TPE & PME",
+  },
+  {
+    slug: "housing",
+    icon: Home,
+    title: "Prêt travaux et habitat",
+    description:
+      "Financement remboursable pour la rénovation, l'aménagement ou l'amélioration d'un logement.",
+    gradient: "from-[oklch(0.6_0.14_150)] to-[oklch(0.72_0.13_130)]",
+    audience: "Propriétaires & locataires",
+  },
+  {
+    slug: "studies",
+    icon: GraduationCap,
+    title: "Prêt études",
+    description:
+      "Prêt remboursable pour financer une formation, un cursus supérieur ou une certification.",
     gradient: "from-[oklch(0.78_0.13_78)] to-[oklch(0.7_0.14_60)]",
     audience: "Étudiants & apprenants",
   },
   {
-    slug: "agriculture",
-    icon: Sprout,
-    title: "Programme Agriculture",
+    slug: "project",
+    icon: Lightbulb,
+    title: "Prêt projet",
     description:
-      "Soutien aux exploitants agricoles, coopératives et projets d'agriculture durable et responsable.",
-    maxAmountEUR: 150000,
-    gradient: "from-[oklch(0.6_0.14_150)] to-[oklch(0.72_0.13_130)]",
-    audience: "Exploitants agricoles",
-  },
-  {
-    slug: "pme",
-    icon: Building2,
-    title: "Programme PME",
-    description:
-      "Financement de croissance pour les petites et moyennes entreprises souhaitant se développer à l'international.",
-    maxAmountEUR: 500000,
-    gradient: "from-[oklch(0.32_0.11_255)] to-[oklch(0.45_0.13_245)]",
-    audience: "PME établies",
-  },
-  {
-    slug: "social",
-    icon: Heart,
-    title: "Programme Solidaire",
-    description:
-      "Programme d'aide aux associations, ONG et projets sociaux à fort impact communautaire.",
-    maxAmountEUR: 120000,
+      "Financement remboursable pour un projet identifié, présenté et documenté par l'emprunteur.",
     gradient: "from-[oklch(0.6_0.2_25)] to-[oklch(0.72_0.15_40)]",
-    audience: "Associations & ONG",
+    audience: "Porteurs de projet",
   },
 ];
 
-export const getProgramBySlug = (slug: string) =>
-  PROGRAMS.find((p) => p.slug === slug);
+export const getLoanProductBySlug = (slug: string) =>
+  LOAN_PRODUCTS.find((p) => p.slug === slug);
+
+/** @deprecated kept for backward compatibility with existing imports. */
+export const PROGRAMS = LOAN_PRODUCTS;
+export const getProgramBySlug = getLoanProductBySlug;
