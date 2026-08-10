@@ -1,3 +1,5 @@
+import { hr as hrRaw } from "./hr";
+
 export const LOCALES = [
   { code: "fr", label: "Français", flag: "🇫🇷" },
   { code: "en", label: "English", flag: "🇬🇧" },
@@ -5,6 +7,7 @@ export const LOCALES = [
   { code: "es", label: "Español", flag: "🇪🇸" },
   { code: "pt", label: "Português", flag: "🇵🇹" },
   { code: "it", label: "Italiano", flag: "🇮🇹" },
+  { code: "hr", label: "Hrvatski", flag: "🇭🇷" },
 ] as const;
 
 export type Locale = (typeof LOCALES)[number]["code"];
@@ -244,6 +247,7 @@ const fr = {
   "apply.field.accept":
     "J'ai compris qu'il s'agit d'un prêt remboursable et j'accepte les conditions d'utilisation et la politique de confidentialité.",
   "apply.summary": "Récapitulatif de votre simulation",
+  "apply.success": "Votre demande a bien été envoyée.",
   "apply.error.generic": "Une erreur est survenue, merci de réessayer.",
   "apply.error.unsupported": "Votre pays de résidence n'est pas desservi.",
 
@@ -1420,4 +1424,6 @@ const it: Dict = {
     "Virelia Crédit: soluzioni di prestito rimborsabile in Europa e Canada, con simulatore, condizioni per mercato e richiesta online.",
 };
 
-export const translations: Record<Locale, Dict> = { fr, en, de, es, pt, it };
+const hr = hrRaw as Dict;
+
+export const translations: Record<Locale, Dict> = { fr, en, de, es, pt, it, hr };

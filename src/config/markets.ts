@@ -7,7 +7,7 @@ import type { Locale } from "@/lib/i18n/translations";
  *  as the client provides its official commercial grid.
  *  --------------------------------------------------------------- */
 
-export const MARKET_CODES = ["FR", "DE", "ES", "PT", "CH", "CA"] as const;
+export const MARKET_CODES = ["FR", "DE", "ES", "PT", "CH", "CA", "HR"] as const;
 export type MarketCode = (typeof MARKET_CODES)[number];
 
 export type CurrencyCode = "EUR" | "CHF" | "CAD";
@@ -137,6 +137,7 @@ export const MARKETS: Record<MarketCode, MarketConfig> = {
   PT: market("PT", "EUR", ["pt"], "pt", ["pt-PT"]),
   CH: market("CH", "CHF", ["fr", "de", "it"], "de", ["fr-CH", "de-CH", "it-CH"]),
   CA: market("CA", "CAD", ["fr", "en"], "en", ["fr-CA", "en-CA"]),
+  HR: market("HR", "EUR", ["hr", "en"], "hr", ["hr-HR"]),
 };
 
 export const ENABLED_MARKETS = MARKET_CODES.map((c) => MARKETS[c]).filter(
@@ -156,6 +157,7 @@ export const MARKET_FLAGS: Record<MarketCode, string> = {
   PT: "🇵🇹",
   CH: "🇨🇭",
   CA: "🇨🇦",
+  HR: "🇭🇷",
 };
 
 /**

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/brand/Logo";
 import { LanguageSelector } from "./LanguageSelector";
-import { CurrencySelector } from "./CurrencySelector";
+import { MarketSelector } from "./MarketSelector";
 import { ThemeToggle } from "./ThemeToggle";
 import { useI18n } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
@@ -27,6 +27,7 @@ export function Header() {
   const links: { to: string; label: string }[] = [
     { to: "/", label: t("nav.home") },
     { to: "/programs", label: t("nav.solutions") },
+    { to: "/simulator", label: t("nav.simulator") },
     { to: "/eligibility", label: t("nav.eligibility") },
     { to: "/process", label: t("nav.process") },
     { to: "/faq", label: t("nav.faq") },
@@ -63,7 +64,7 @@ export function Header() {
         <div className="flex items-center gap-1.5">
           <div className="hidden sm:flex sm:items-center sm:gap-1">
             <LanguageSelector />
-            <CurrencySelector />
+            <MarketSelector />
             <ThemeToggle />
           </div>
           <Button asChild size="sm" className="hidden rounded-full px-5 shadow-[var(--shadow-elegant)] md:inline-flex">
@@ -96,7 +97,7 @@ export function Header() {
             ))}
             <div className="mt-2 flex items-center gap-2 border-t border-border pt-3">
               <LanguageSelector />
-              <CurrencySelector />
+              <MarketSelector />
               <ThemeToggle />
             </div>
             <Button asChild className="mt-3 rounded-full">
