@@ -10,8 +10,8 @@ export const BRAND = {
   positioning: "Solutions de prêt claires, transparentes et adaptées à votre marché.",
   /** Reference prefix used for application numbers (VIR-2026-000001). */
   referencePrefix: "VIR",
-  domain: "goldengranthub.lovable.app",
-  siteUrl: "https://goldengranthub.lovable.app",
+  domain: "vireliacredit.lovable.app",
+  siteUrl: "https://vireliacredit.lovable.app",
 } as const;
 
 /** Single source of truth for every contact detail displayed on the site. */

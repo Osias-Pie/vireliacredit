@@ -1,3 +1,5 @@
+import { CONTACT } from "@/config/brand";
+
 export interface Testimonial {
   name: string;
   role: string;
@@ -5,116 +7,54 @@ export interface Testimonial {
   quote: string;
   program: string;
   rating: number;
-  avatar: string;
 }
 
-export const TESTIMONIALS: Testimonial[] = [
-  {
-    name: "Aminata Diallo",
-    role: "Fondatrice, Atelier Textile Bamako",
-    country: "Mali",
-    quote:
-      "Un accompagnement exceptionnel du dépôt jusqu'à la réponse finale. L'équipe a compris mon projet et m'a permis de lancer mon atelier avec sérénité.",
-    program: "Programme Entrepreneurs",
-    rating: 5,
-    avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=256&h=256&fit=crop&crop=faces&auto=format&q=80",
-  },
-  {
-    name: "Julien Moreau",
-    role: "Co-fondateur, Greentech Studio",
-    country: "France",
-    quote:
-      "Réactivité, transparence et professionnalisme. Le suivi par e-mail est ultra clair, on sait toujours où on en est.",
-    program: "Programme PME",
-    rating: 5,
-    avatar: "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=256&h=256&fit=crop&crop=faces&auto=format&q=80",
-  },
-  {
-    name: "Sofia Rodríguez",
-    role: "Doctorante en économie",
-    country: "Espagne",
-    quote:
-      "Grâce au Programme Éducation, j'ai pu financer ma thèse à l'étranger. Une expérience humaine avant tout.",
-    program: "Programme Éducation",
-    rating: 5,
-    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=256&h=256&fit=crop&crop=faces&auto=format&q=80",
-  },
-  {
-    name: "Kwame Osei",
-    role: "Directeur, Coopérative Kakao Plus",
-    country: "Ghana",
-    quote:
-      "Notre coopérative a doublé sa production grâce au Programme Agriculture. Merci pour la confiance accordée.",
-    program: "Programme Agriculture",
-    rating: 5,
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=256&h=256&fit=crop&crop=faces&auto=format&q=80",
-  },
-  {
-    name: "Emma Van Berg",
-    role: "Directrice, ONG Kinderhulp",
-    country: "Pays-Bas",
-    quote:
-      "Un partenaire fiable pour les projets à impact social. Nous recommandons vivement leur programme solidaire.",
-    program: "Programme Solidaire",
-    rating: 5,
-    avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=256&h=256&fit=crop&crop=faces&auto=format&q=80",
-  },
-  {
-    name: "Marco Ferretti",
-    role: "Architecte associé",
-    country: "Italie",
-    quote:
-      "Rapide, sérieux, humain. J'ai pu concrétiser mon projet immobilier familial dans d'excellentes conditions.",
-    program: "Programme Habitat",
-    rating: 5,
-    avatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=256&h=256&fit=crop&crop=faces&auto=format&q=80",
-  },
-];
+/**
+ * No testimonial is published yet: only real, verified borrower feedback may be
+ * added here. While the list is empty the section is hidden.
+ */
+export const TESTIMONIALS: Testimonial[] = [];
 
-export interface FaqItem {
+export interface Faq {
   q: string;
   a: string;
 }
 
-export const FAQS: FaqItem[] = [
+export const FAQS: Faq[] = [
   {
-    q: "Golden Grant Hub est-il une banque ?",
-    a: "Non. Nous sommes un organisme international qui met en relation les porteurs de projets avec des programmes de financement adaptés. Nous ne délivrons pas de crédit bancaire.",
+    q: "Virelia Crédit propose-t-il des subventions ou des aides non remboursables ?",
+    a: "Non. Virelia Crédit présente uniquement des solutions de prêt remboursables. Tout montant accordé doit être remboursé selon un échéancier convenu.",
   },
   {
-    q: "Comment se passe le suivi de mon dossier ?",
-    a: "L'intégralité du suivi se fait par e-mail, à l'adresse indiquée dans votre demande. Un numéro de dossier unique vous est attribué dès l'envoi.",
+    q: "Dans quels pays puis-je déposer une demande ?",
+    a: "Les demandes sont étudiées pour les résidents des pays actuellement desservis : France, Allemagne, Espagne, Portugal, Suisse, Canada et Croatie. Le pays de résidence doit être confirmé avant l'envoi du dossier.",
   },
   {
-    q: "Combien de temps prend l'analyse d'une demande ?",
-    a: "Une première analyse est effectuée sous 72 heures. La réponse détaillée intervient sous 15 jours ouvrés maximum.",
+    q: "Quels sont les taux et les frais appliqués ?",
+    a: "Les conditions tarifaires sont définies marché par marché. Tant qu'elles ne sont pas publiées, la mention « en cours de configuration » est affichée : aucun taux ni frais n'est inventé.",
   },
   {
-    q: "Les frais de dossier sont-ils payants ?",
-    a: "Le dépôt d'une demande est entièrement gratuit. Aucun frais ne vous sera jamais demandé pendant la phase d'analyse.",
+    q: "Des frais sont-ils demandés avant le versement du prêt ?",
+    a: "Il n'existe aucune règle générale. Lorsqu'un marché prévoit des frais exigibles avant décaissement, ils sont indiqués dans la configuration du marché, dans le simulateur et dans le récapitulatif de la demande, avant toute signature.",
   },
   {
-    q: "Puis-je déposer plusieurs demandes ?",
-    a: "Oui, vous pouvez déposer une demande pour chaque programme distinct, à condition que chaque projet soit détaillé et cohérent.",
+    q: "Le dépôt d'une demande garantit-il l'obtention d'un prêt ?",
+    a: "Non. Chaque dossier est étudié individuellement, notamment au regard de la capacité de remboursement. Aucune approbation, aucun délai et aucun taux ne sont garantis à l'avance.",
   },
   {
-    q: "Mes données personnelles sont-elles protégées ?",
-    a: "Absolument. Nous respectons le RGPD et toutes les données sont stockées de manière sécurisée. Voir notre politique de confidentialité.",
+    q: "Le simulateur a-t-il une valeur contractuelle ?",
+    a: "Non. Il fournit une estimation indicative. Seule l'offre de prêt écrite qui vous serait adressée après étude a une valeur contractuelle.",
   },
   {
-    q: "Puis-je modifier ma demande après envoi ?",
-    a: "Non, mais vous pouvez nous contacter par e-mail en précisant votre numéro de dossier pour toute mise à jour importante.",
+    q: "Comment se déroule le suivi de mon dossier ?",
+    a: `Le suivi se fait par écrit, par e-mail${CONTACT.applicationEmail ? ` (${CONTACT.applicationEmail})` : ""}, afin que vous conserviez une trace de chaque échange.`,
   },
   {
-    q: "Quels pays sont couverts ?",
-    a: "Nous sommes présents dans plus de 30 pays en Europe, en Amérique du Nord et en Afrique. La liste complète est disponible sur simple demande.",
+    q: "Quels documents dois-je préparer ?",
+    a: "Généralement une pièce d'identité en cours de validité, un justificatif de domicile récent, des justificatifs de revenus, un justificatif d'activité et des relevés bancaires. La liste exacte dépend du marché et de la solution de prêt.",
   },
   {
-    q: "Dois-je fournir des garanties ?",
-    a: "Les garanties dépendent du programme choisi. Elles sont précisées lors de la phase d'analyse, jamais avant.",
-  },
-  {
-    q: "Comment savoir quel programme choisir ?",
-    a: "Consultez la page Programmes ou contactez-nous : nous vous orientons vers le dispositif le plus adapté à votre situation.",
+    q: "Que deviennent mes données personnelles ?",
+    a: "Elles sont utilisées uniquement pour l'étude de votre demande de prêt et ne sont pas cédées à des tiers à des fins commerciales.",
   },
 ];

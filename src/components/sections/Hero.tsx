@@ -2,20 +2,23 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, ShieldCheck, Sparkles, TrendingUp, Target, Rocket, HandCoins } from "lucide-react";
+import { useI18n } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/button";
 import heroImage from "@/assets/hero-premium.jpg";
 
-const SLIDES = [
-  { icon: HandCoins, text: "Soutenir vos projets" },
-  { icon: TrendingUp, text: "Développer votre entreprise" },
-  { icon: Target, text: "Réaliser vos ambitions" },
-  { icon: Rocket, text: "Obtenir une aide non remboursable" },
-];
+const SLIDE_ICONS = [HandCoins, TrendingUp, Target, Rocket];
 
 export function Hero() {
+  const { t } = useI18n();
+  const SLIDES = [
+    { icon: SLIDE_ICONS[0], text: t("home.hero.rotate1") },
+    { icon: SLIDE_ICONS[1], text: t("home.hero.rotate2") },
+    { icon: SLIDE_ICONS[2], text: t("home.hero.rotate3") },
+    { icon: SLIDE_ICONS[3], text: t("home.hero.rotate4") },
+  ];
   const [idx, setIdx] = useState(0);
   useEffect(() => {
-    const i = setInterval(() => setIdx((n) => (n + 1) % SLIDES.length), 3500);
+    const i = setInterval(() => setIdx((n) => (n + 1) % 4), 3500);
     return () => clearInterval(i);
   }, []);
 
@@ -27,7 +30,7 @@ export function Hero() {
       {/* Background image */}
       <img
         src={heroImage}
-        alt="Aide financière — croissance et opportunités"
+        alt="Solutions de prêt remboursable"
         className="absolute inset-0 -z-20 h-full w-full object-cover"
         width={1920}
         height={1088}
@@ -60,7 +63,7 @@ export function Hero() {
             className="inline-flex items-center gap-2 rounded-full border border-[oklch(0.78_0.13_78)]/40 bg-white/5 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-[oklch(0.88_0.11_82)] backdrop-blur-md"
           >
             <Sparkles className="h-3.5 w-3.5" />
-            Aide financière internationale
+            {t("home.hero.badge")}
           </motion.div>
 
           <motion.h1
@@ -69,10 +72,8 @@ export function Hero() {
             transition={{ duration: 0.7, delay: 0.1 }}
             className="mt-6 font-display text-4xl font-black leading-[1.02] tracking-tight text-white sm:text-6xl lg:text-7xl"
           >
-            AIDE FINANCIÈRE
-            <br />
             <span className="bg-gradient-to-r from-[oklch(0.88_0.13_82)] via-[oklch(0.80_0.15_78)] to-[oklch(0.72_0.14_72)] bg-clip-text text-transparent">
-              NON REMBOURSABLE
+              {t("home.hero.title")}
             </span>
           </motion.h1>
 
@@ -82,7 +83,7 @@ export function Hero() {
             transition={{ duration: 0.7, delay: 0.2 }}
             className="mt-5 max-w-2xl text-lg leading-relaxed text-white/85 sm:text-xl"
           >
-            Une aide concrète pour financer vos projets ambitieux.
+            {t("home.hero.subtitle")}
           </motion.p>
 
           {/* Rotating benefit slider */}
@@ -109,27 +110,6 @@ export function Hero() {
             </AnimatePresence>
           </motion.div>
 
-          {/* Premium amount card */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.7, delay: 0.4 }}
-            className="mt-8 inline-flex flex-col overflow-hidden rounded-2xl border border-[oklch(0.78_0.13_78)]/35 bg-gradient-to-br from-white/10 to-white/5 p-1 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.6)] backdrop-blur-xl"
-          >
-            <div className="rounded-xl bg-gradient-to-br from-[oklch(0.30_0.12_258)]/70 to-[oklch(0.18_0.09_258)]/70 px-6 py-4 sm:px-8 sm:py-5">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[oklch(0.88_0.13_82)]">
-                Aide financière
-              </div>
-              <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1 font-display text-white">
-                <span className="text-2xl font-bold tabular-nums sm:text-3xl">5 000 €</span>
-                <span className="text-lg text-white/60">→</span>
-                <span className="bg-gradient-to-r from-[oklch(0.90_0.14_82)] to-[oklch(0.75_0.15_74)] bg-clip-text text-3xl font-black tabular-nums text-transparent sm:text-4xl">
-                  500 000 000 €
-                </span>
-              </div>
-            </div>
-          </motion.div>
-
           {/* CTAs */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
@@ -143,7 +123,7 @@ export function Hero() {
               className="group h-13 rounded-full bg-gradient-to-r from-[oklch(0.78_0.14_78)] to-[oklch(0.68_0.16_70)] px-7 text-base font-semibold text-[oklch(0.18_0.06_258)] shadow-[0_12px_40px_-8px_rgba(0,0,0,0.55)] hover:from-[oklch(0.82_0.14_80)] hover:to-[oklch(0.72_0.16_72)]"
             >
               <Link to="/apply">
-                Faire une demande
+                {t("cta.apply")}
                 <ArrowRight className="ml-1.5 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
               </Link>
             </Button>
@@ -153,7 +133,7 @@ export function Hero() {
               size="lg"
               className="h-13 rounded-full border-white/30 bg-white/5 px-7 text-base font-semibold text-white backdrop-blur-md hover:bg-white/15 hover:text-white"
             >
-              <Link to="/programs">En savoir plus</Link>
+              <Link to="/simulator">{t("cta.simulate")}</Link>
             </Button>
           </motion.div>
 
@@ -164,10 +144,9 @@ export function Hero() {
             className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-white/70"
           >
             <span className="inline-flex items-center gap-1.5">
-              <ShieldCheck className="h-4 w-4 text-[oklch(0.85_0.13_82)]" /> RGPD · SSL 256-bit
+              <ShieldCheck className="h-4 w-4 text-[oklch(0.85_0.13_82)]" /> RGPD · SSL
             </span>
-            <span>30+ pays · 15 ans d'expérience</span>
-            <span>+2 500 bénéficiaires</span>
+            <span>{t("solutions.repayable")}</span>
           </motion.div>
         </div>
       </div>

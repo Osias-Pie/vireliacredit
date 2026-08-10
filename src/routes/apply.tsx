@@ -19,6 +19,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { PROGRAMS } from "@/lib/data/programs";
 import { CURRENCIES } from "@/lib/currency/context";
 import { useI18n } from "@/lib/i18n/context";
+import { useMarket } from "@/lib/market/context";
+import { countryName } from "@/lib/market/country-name";
+import { ResidenceConfirm } from "@/components/market/ResidenceConfirm";
 import { submitApplication } from "@/lib/applications.functions";
 
 const schema = z.object({
@@ -35,7 +38,8 @@ const schema = z.object({
   profession: z.string().trim().min(2, "Profession requise"),
   company: z.string().trim().optional().or(z.literal("")),
   income: z.string().trim().optional().or(z.literal("")),
-  program: z.string().trim().min(1, "Sélectionnez un programme"),
+  program: z.string().trim().min(1, "Sélectionnez une solution de prêt"),
+  duration: z.string().trim().optional().or(z.literal("")),
   amount: z.coerce.number().positive("Montant invalide"),
   currency: z.string().min(2),
   description: z.string().trim().min(20, "Décrivez votre projet (min 20 caractères)"),
@@ -46,14 +50,20 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export const Route = createFileRoute("/apply")({
-  validateSearch: (s: Record<string, unknown>): { program?: string } =>
-    typeof s.program === "string" ? { program: s.program } : {},
-
+  validateSearch: (
+    s: Record<string, unknown>,
+  ): { program?: string; amount?: number; duration?: number } => ({
+    program: typeof s.program === "string" ? s.program : undefined,
+    amount: Number.isFinite(Number(s.amount)) && s.amount != null ? Number(s.amount) : undefined,
+    duration:
+      Number.isFinite(Number(s.duration)) && s.duration != null ? Number(s.duration) : undefined,
+  }),
   component: ApplyPage,
 });
 
 function ApplyPage() {
   const { t, locale } = useI18n();
+  const { market, marketCode, confirmed } = useMarket();
   const navigate = useNavigate();
   const search = useSearch({ from: "/apply" });
   const [submitting, setSubmitting] = useState(false);
@@ -64,40 +74,61 @@ function ApplyPage() {
       last_name: "", first_name: "", gender: "male", birth_date: "",
       country: "", city: "", address: "", phone: "", whatsapp: "", email: "",
       profession: "", company: "", income: "",
-      program: search.program ?? "", amount: 0, currency: "EUR",
+      program: search.program ?? "", amount: search.amount ?? 0,
+      duration: search.duration ? String(search.duration) : "", currency: "EUR",
       description: "", goals: "", accept: undefined as unknown as true,
     },
   });
 
   useEffect(() => {
     if (search.program) form.setValue("program", search.program);
-  }, [search.program, form]);
+    if (search.amount) form.setValue("amount", search.amount);
+    if (search.duration) form.setValue("duration", String(search.duration));
+  }, [search.program, search.amount, search.duration, form]);
+
+  // Country of residence + market currency follow the selected market.
+  useEffect(() => {
+    if (!form.getValues("country")) form.setValue("country", countryName(marketCode, locale));
+    form.setValue("currency", market.currency);
+  }, [marketCode, market.currency, locale, form]);
 
   const onSubmit = async (values: FormValues) => {
     setSubmitting(true);
     try {
-      const { accept: _accept, ...payload } = values;
+      const { accept: _accept, duration, ...payload } = values;
       const result = await submitApplication({
         data: {
           ...payload,
           income: payload.income ? Number(payload.income) : null,
           language: locale,
+          market: marketCode,
+          duration_months: duration ? Number(duration) : null,
         },
       });
-      toast.success("Demande envoyée avec succès");
+      toast.success(t("apply.success"));
       navigate({
         to: "/confirmation",
         search: { ref: result.reference } as never,
       });
     } catch (e) {
       console.error(e);
-      toast.error("Une erreur est survenue. Merci de réessayer.");
+      toast.error(t("apply.error.generic"));
     } finally {
       setSubmitting(false);
     }
   };
 
   const err = form.formState.errors;
+
+  if (!confirmed) {
+    return (
+      <PageLayout>
+        <section className="container-page py-16 sm:py-24">
+          <ResidenceConfirm />
+        </section>
+      </PageLayout>
+    );
+  }
 
   return (
     <PageLayout>
@@ -211,8 +242,11 @@ function ApplyPage() {
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="Montant demandé" className="sm:col-span-2" error={err.amount?.message}>
+              <Field label={t("apply.field.amount")} error={err.amount?.message}>
                 <Input type="number" inputMode="decimal" {...form.register("amount")} />
+              </Field>
+              <Field label={t("apply.field.duration")} error={err.duration?.message}>
+                <Input type="number" inputMode="numeric" {...form.register("duration")} />
               </Field>
               <Field label="Description du projet" className="sm:col-span-2" error={err.description?.message}>
                 <Textarea rows={4} {...form.register("description")} />

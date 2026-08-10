@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { I18nProvider } from "@/lib/i18n/context";
 import { CurrencyProvider } from "@/lib/currency/context";
+import { MarketProvider } from "@/lib/market/context";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/lib/theme/context";
 
@@ -81,29 +82,29 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Golden Grant Hub — International Grants & Funding" },
+      { title: "Virelia Crédit — Solutions de prêt remboursable" },
       {
         name: "description",
         content:
-          "Golden Grant Hub connects entrepreneurs, associations and individuals with international grants, scholarships and funding programs. Check your eligibility in minutes.",
+          "Virelia Crédit présente des solutions de prêt remboursable en Europe et au Canada : simulateur, conditions par marché et demande en ligne.",
       },
-      { name: "application-name", content: "Golden Grant Hub" },
-      { name: "apple-mobile-web-app-title", content: "Golden Grant Hub" },
+      { name: "application-name", content: "Virelia Crédit" },
+      { name: "apple-mobile-web-app-title", content: "Virelia Crédit" },
       { name: "theme-color", content: "#0B2545" },
-      { property: "og:site_name", content: "Golden Grant Hub" },
-      { property: "og:title", content: "Golden Grant Hub — International Grants & Funding" },
+      { property: "og:site_name", content: "Virelia Crédit" },
+      { property: "og:title", content: "Virelia Crédit — Solutions de prêt remboursable" },
       {
         property: "og:description",
         content:
-          "Discover international grants, scholarships and funding programs. Trusted, transparent, global.",
+          "Simulateur de prêt, conditions par marché et demande en ligne étudiée au cas par cas.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Golden Grant Hub — International Grants & Funding" },
+      { name: "twitter:title", content: "Virelia Crédit — Solutions de prêt remboursable" },
       {
         name: "twitter:description",
         content:
-          "Discover international grants, scholarships and funding programs. Trusted, transparent, global.",
+          "Simulateur de prêt, conditions par marché et demande en ligne étudiée au cas par cas.",
       },
     ],
     links: [
@@ -148,9 +149,11 @@ function RootComponent() {
       <ThemeProvider>
         <I18nProvider>
           <CurrencyProvider>
+            <MarketProvider>
             {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-            <Outlet />
-            <Toaster />
+              <Outlet />
+              <Toaster />
+            </MarketProvider>
           </CurrencyProvider>
         </I18nProvider>
       </ThemeProvider>
