@@ -1,4 +1,5 @@
 import { hr as hrRaw } from "./hr";
+import { frExtra, enExtra, deExtra, esExtra, ptExtra, itExtra, hrExtra } from "./extra";
 
 export const LOCALES = [
   { code: "fr", label: "Français", flag: "🇫🇷" },
@@ -12,7 +13,7 @@ export const LOCALES = [
 
 export type Locale = (typeof LOCALES)[number]["code"];
 
-const fr = {
+const frBase = {
   "brand.name": "Virelia Crédit",
   "brand.tagline": "Le crédit, clair et sans détour",
 
@@ -271,10 +272,12 @@ const fr = {
     "Virelia Crédit présente des solutions de prêt remboursable en Europe et au Canada : simulateur, conditions par marché et demande en ligne.",
 } as const;
 
+const fr = { ...frBase, ...frExtra };
 export type TranslationKey = keyof typeof fr;
 type Dict = Partial<Record<TranslationKey, string>>;
 
 const en: Dict = {
+  ...enExtra,
   "brand.tagline": "Lending, made clear",
   "nav.home": "Home",
   "nav.solutions": "Loan solutions",
@@ -507,6 +510,7 @@ const en: Dict = {
 };
 
 const de: Dict = {
+  ...deExtra,
   "brand.tagline": "Kredit, klar erklärt",
   "nav.home": "Startseite",
   "nav.solutions": "Kreditlösungen",
@@ -738,6 +742,7 @@ const de: Dict = {
 };
 
 const es: Dict = {
+  ...esExtra,
   "brand.tagline": "El crédito, explicado con claridad",
   "nav.home": "Inicio",
   "nav.solutions": "Soluciones de préstamo",
@@ -968,6 +973,7 @@ const es: Dict = {
 };
 
 const pt: Dict = {
+  ...ptExtra,
   "brand.tagline": "O crédito, explicado com clareza",
   "nav.home": "Início",
   "nav.solutions": "Soluções de crédito",
@@ -1197,6 +1203,7 @@ const pt: Dict = {
 };
 
 const it: Dict = {
+  ...itExtra,
   "brand.tagline": "Il credito, spiegato con chiarezza",
   "nav.home": "Home",
   "nav.solutions": "Soluzioni di prestito",
@@ -1424,6 +1431,6 @@ const it: Dict = {
     "Virelia Crédit: soluzioni di prestito rimborsabile in Europa e Canada, con simulatore, condizioni per mercato e richiesta online.",
 };
 
-const hr = hrRaw as Dict;
+const hr: Dict = { ...hrExtra, ...(hrRaw as Dict) };
 
 export const translations: Record<Locale, Dict> = { fr, en, de, es, pt, it, hr };
