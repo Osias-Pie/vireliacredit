@@ -45,11 +45,80 @@ export interface ProductPricing {
   durations: number[];
   /** annual nominal rate, in % — null while unknown */
   nominalRate: number | null;
-  /** APR / TAEG, in % — null while unknown */
+  /** APR / TAEG / EKS, in % — null while unknown */
   apr: number | null;
   fees: FeeConfig[];
   /** market/product specific regulatory sentence, provided by the client */
   legalNotice: string | null;
+}
+
+/** ------------------------------------------------------------------
+ *  PROCESSING SPEED + PROCESSING FEES
+ *  The commercial grid below is CENTRALISED here on purpose.
+ *  Never duplicate these amounts inside a component.
+ *  ------------------------------------------------------------------ */
+
+export const PROCESSING_SPEEDS = [
+  "urgent",
+  "24h",
+  "48h",
+  "3_5_business_days",
+  "within_one_week",
+] as const;
+export type ProcessingSpeed = (typeof PROCESSING_SPEEDS)[number];
+
+export interface ProcessingFeeTier {
+  speed: ProcessingSpeed;
+  /** amount expressed in the policy currency */
+  fee: number;
+}
+
+export interface ProcessingFeePolicy {
+  /** When false, no processing fee exists for this market/product. */
+  enabled: boolean;
+  currency: CurrencyCode;
+  /** When false, the fee is never requested before the file is studied. */
+  requiresPaymentBeforeProcessing: boolean;
+  /** Optional i18n key overriding the default wording. */
+  labelKey?: string;
+  tiers: ProcessingFeeTier[];
+}
+
+/** Current commercial grid — editable in one place. */
+export const DEFAULT_PROCESSING_FEE_TIERS: ProcessingFeeTier[] = [
+  { speed: "urgent", fee: 100 },
+  { speed: "24h", fee: 98 },
+  { speed: "48h", fee: 95 },
+  { speed: "3_5_business_days", fee: 92 },
+  { speed: "within_one_week", fee: 90 },
+];
+
+const feePolicy = (
+  currency: CurrencyCode,
+  enabled: boolean,
+  requiresPaymentBeforeProcessing = enabled,
+): ProcessingFeePolicy => ({
+  enabled,
+  currency,
+  requiresPaymentBeforeProcessing,
+  tiers: DEFAULT_PROCESSING_FEE_TIERS.map((t) => ({ ...t })),
+});
+
+/** Per-product configuration inside a market. */
+export interface ProductConfig {
+  slug: string;
+  enabled: boolean;
+  /** null while the client has not provided its commercial grid */
+  pricing: ProductPricing | null;
+  /** null = no processing fee policy defined for this market/product */
+  processingFeePolicy: ProcessingFeePolicy | null;
+}
+
+/** UI bounds used by the simulator sliders. Not a commercial commitment. */
+export interface InputRange {
+  min: number;
+  max: number;
+  step: number;
 }
 
 export interface MarketConfig {
@@ -62,10 +131,11 @@ export interface MarketConfig {
   /** BCP-47 tags used for hreflang */
   hreflang: string[];
   minimumAge: number;
-  /** loan product slugs available on this market */
-  products: string[];
-  /** pricing per product slug — null until the client provides real values */
-  pricing: Record<string, ProductPricing | null>;
+  /** loan products available on this market, keyed by slug */
+  products: Record<string, ProductConfig>;
+  /** simulator input bounds (UI only) */
+  amountRange: InputRange;
+  durationRange: InputRange;
   /** i18n keys of documents usually required */
   documents: string[];
   /** i18n keys of eligibility criteria */
@@ -92,18 +162,43 @@ const COMMON_ELIGIBILITY = [
   "eligibility.accept_terms",
 ];
 
-const ALL_PRODUCTS = [
+export const ALL_PRODUCTS = [
   "personal",
   "professional",
   "business",
   "housing",
   "studies",
   "project",
-];
+  "retired",
+] as const;
 
-/** No real rate, fee or tax is declared yet — every entry is intentionally null. */
-const noPricing = (): Record<string, ProductPricing | null> =>
-  Object.fromEntries(ALL_PRODUCTS.map((p) => [p, null]));
+const DEFAULT_AMOUNT_RANGE: InputRange = { min: 1000, max: 100000, step: 500 };
+const DEFAULT_DURATION_RANGE: InputRange = { min: 6, max: 120, step: 6 };
+
+/**
+ * No rate, tax or duration is invented: pricing stays null until the client
+ * provides its official grid. Only the processing-fee policy — which is a
+ * service option, not a credit condition — carries real values, and it is
+ * activated market by market.
+ */
+function buildProducts(
+  currency: CurrencyCode,
+  feesEnabled: boolean,
+  overrides: Record<string, Partial<ProductConfig>> = {},
+): Record<string, ProductConfig> {
+  return Object.fromEntries(
+    ALL_PRODUCTS.map((slug) => [
+      slug,
+      {
+        slug,
+        enabled: true,
+        pricing: null,
+        processingFeePolicy: feePolicy(currency, feesEnabled),
+        ...(overrides[slug] ?? {}),
+      } satisfies ProductConfig,
+    ]),
+  );
+}
 
 function market(
   code: MarketCode,
@@ -111,6 +206,7 @@ function market(
   languages: Locale[],
   defaultLanguage: Locale,
   hreflang: string[],
+  feesEnabled: boolean,
   overrides: Partial<MarketConfig> = {},
 ): MarketConfig {
   return {
@@ -121,8 +217,9 @@ function market(
     hreflang,
     enabled: true,
     minimumAge: 18,
-    products: ALL_PRODUCTS,
-    pricing: noPricing(),
+    products: buildProducts(currency, feesEnabled),
+    amountRange: DEFAULT_AMOUNT_RANGE,
+    durationRange: DEFAULT_DURATION_RANGE,
     documents: COMMON_DOCUMENTS,
     eligibility: COMMON_ELIGIBILITY,
     legalNotice: null,
@@ -130,14 +227,20 @@ function market(
   };
 }
 
+/**
+ * Processing fees are only switched on where the client has confirmed the
+ * practice is lawful and documented. Croatia is the priority market.
+ * Everywhere else the policy exists but stays disabled — the simulator and
+ * the form must work identically with `enabled: false`.
+ */
 export const MARKETS: Record<MarketCode, MarketConfig> = {
-  FR: market("FR", "EUR", ["fr"], "fr", ["fr-FR"]),
-  DE: market("DE", "EUR", ["de"], "de", ["de-DE"]),
-  ES: market("ES", "EUR", ["es"], "es", ["es-ES"]),
-  PT: market("PT", "EUR", ["pt"], "pt", ["pt-PT"]),
-  CH: market("CH", "CHF", ["fr", "de", "it"], "de", ["fr-CH", "de-CH", "it-CH"]),
-  CA: market("CA", "CAD", ["fr", "en"], "en", ["fr-CA", "en-CA"]),
-  HR: market("HR", "EUR", ["hr", "en"], "hr", ["hr-HR"]),
+  FR: market("FR", "EUR", ["fr"], "fr", ["fr-FR"], false),
+  DE: market("DE", "EUR", ["de"], "de", ["de-DE"], false),
+  ES: market("ES", "EUR", ["es"], "es", ["es-ES"], false),
+  PT: market("PT", "EUR", ["pt"], "pt", ["pt-PT"], false),
+  CH: market("CH", "CHF", ["fr", "de", "it"], "de", ["fr-CH", "de-CH", "it-CH"], false),
+  CA: market("CA", "CAD", ["fr", "en"], "en", ["fr-CA", "en-CA"], false),
+  HR: market("HR", "EUR", ["hr", "en"], "hr", ["hr-HR"], true),
 };
 
 export const ENABLED_MARKETS = MARKET_CODES.map((c) => MARKETS[c]).filter(
@@ -148,6 +251,64 @@ export const isSupportedMarket = (code: string | null | undefined): code is Mark
   !!code && (MARKET_CODES as readonly string[]).includes(code.toUpperCase());
 
 export const getMarket = (code: MarketCode) => MARKETS[code];
+
+/** Slugs actually offered on a market. */
+export const marketProductSlugs = (m: MarketConfig): string[] =>
+  Object.values(m.products)
+    .filter((p) => p.enabled)
+    .map((p) => p.slug);
+
+export const getProductConfig = (
+  m: MarketConfig,
+  slug: string,
+): ProductConfig | null => m.products[slug] ?? null;
+
+export const getPricing = (m: MarketConfig, slug: string): ProductPricing | null =>
+  m.products[slug]?.pricing ?? null;
+
+export interface ResolvedProcessingFee {
+  amount: number;
+  currency: CurrencyCode;
+  requiresPaymentBeforeProcessing: boolean;
+}
+
+/**
+ * Resolve the processing fee for a market / product / speed combination.
+ * Returns null whenever no fee applies — callers must render nothing then.
+ */
+export function getProcessingFee(
+  m: MarketConfig,
+  slug: string,
+  speed: ProcessingSpeed,
+): ResolvedProcessingFee | null {
+  const policy = m.products[slug]?.processingFeePolicy;
+  if (!policy || !policy.enabled) return null;
+  const tier = policy.tiers.find((t) => t.speed === speed);
+  if (!tier) return null;
+  return {
+    amount: tier.fee,
+    currency: policy.currency,
+    requiresPaymentBeforeProcessing: policy.requiresPaymentBeforeProcessing,
+  };
+}
+
+/** Documents requested depending on the declared employment situation. */
+export const EMPLOYMENT_STATUSES = [
+  "employee",
+  "self_employed",
+  "business_owner",
+  "retired",
+  "other",
+] as const;
+export type EmploymentStatus = (typeof EMPLOYMENT_STATUSES)[number];
+
+export const DOCUMENTS_BY_STATUS: Record<EmploymentStatus, string[]> = {
+  employee: ["documents.id", "documents.address", "documents.payslip"],
+  self_employed: ["documents.id", "documents.address", "documents.pro_income"],
+  business_owner: ["documents.id", "documents.address", "documents.pro_income"],
+  retired: ["documents.id", "documents.address", "documents.pension"],
+  other: ["documents.id", "documents.address", "documents.income"],
+};
 
 /** Country flags, only used for display in the selector. */
 export const MARKET_FLAGS: Record<MarketCode, string> = {
