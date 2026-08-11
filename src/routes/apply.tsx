@@ -52,11 +52,12 @@ type FormValues = z.infer<typeof schema>;
 export const Route = createFileRoute("/apply")({
   validateSearch: (
     s: Record<string, unknown>,
-  ): { program?: string; amount?: number; duration?: number } => ({
+  ): { program?: string; amount?: number; duration?: number; speed?: string } => ({
     program: typeof s.program === "string" ? s.program : undefined,
     amount: Number.isFinite(Number(s.amount)) && s.amount != null ? Number(s.amount) : undefined,
     duration:
       Number.isFinite(Number(s.duration)) && s.duration != null ? Number(s.duration) : undefined,
+    speed: typeof s.speed === "string" ? s.speed : undefined,
   }),
   component: ApplyPage,
 });
