@@ -1,15 +1,17 @@
 import { motion } from "framer-motion";
-import { Quote, Star } from "lucide-react";
+import { Quote, Star, Calculator, ListChecks, Layers, MailCheck } from "lucide-react";
 import { TESTIMONIALS } from "@/lib/data/content";
 import { useI18n } from "@/lib/i18n/context";
 
 /**
- * Loan testimonials. The list is intentionally empty until real, verified
- * borrower feedback is provided — the section then hides itself.
+ * Loan testimonials. The list stays empty until real, verified borrower
+ * feedback exists — meanwhile the same slot presents qualitative service
+ * benefits instead of inventing quotes or figures.
  */
 export function Testimonials() {
   const { t } = useI18n();
-  if (TESTIMONIALS.length === 0) return null;
+  if (TESTIMONIALS.length === 0) return <ExperienceFallback />;
+
 
   return (
     <section className="bg-background py-20 sm:py-28">
