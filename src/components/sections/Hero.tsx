@@ -1,153 +1,150 @@
-import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, ShieldCheck, Sparkles, TrendingUp, Target, Rocket, HandCoins } from "lucide-react";
+import { motion } from "framer-motion";
+import { ArrowRight, Lock, Globe2, FileCheck2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n/context";
+import { useMarket } from "@/lib/market/context";
+import { countryName } from "@/lib/market/country-name";
 import { Button } from "@/components/ui/button";
-import heroImage from "@/assets/hero-premium.jpg";
+import heroImage from "@/assets/hero-advisory.jpg";
 
-const SLIDE_ICONS = [HandCoins, TrendingUp, Target, Rocket];
-
+/**
+ * Virelia hero — editorial split composition.
+ * Left: deep petrol panel carrying the message. Right: the advisory photo.
+ * The former full-bleed "coins & plant" background image is no longer used.
+ */
 export function Hero() {
-  const { t } = useI18n();
-  const SLIDES = [
-    { icon: SLIDE_ICONS[0], text: t("home.hero.rotate1") },
-    { icon: SLIDE_ICONS[1], text: t("home.hero.rotate2") },
-    { icon: SLIDE_ICONS[2], text: t("home.hero.rotate3") },
-    { icon: SLIDE_ICONS[3], text: t("home.hero.rotate4") },
-  ];
-  const [idx, setIdx] = useState(0);
-  useEffect(() => {
-    const i = setInterval(() => setIdx((n) => (n + 1) % 4), 3500);
-    return () => clearInterval(i);
-  }, []);
-
-  const Slide = SLIDES[idx];
-  const SlideIcon = Slide.icon;
+  const { t, locale } = useI18n();
+  const { market, marketCode } = useMarket();
 
   return (
-    <section className="relative isolate min-h-[92vh] w-full overflow-hidden">
-      {/* Background image */}
-      <img
-        src={heroImage}
-        alt="Solutions de prêt remboursable"
-        className="absolute inset-0 -z-20 h-full w-full object-cover"
-        width={1920}
-        height={1088}
-        fetchPriority="high"
-      />
-      {/* Overlays for readability */}
-      <div
-        className="absolute inset-0 -z-10"
-        aria-hidden
-        style={{
-          background:
-            "linear-gradient(120deg, oklch(0.16 0.08 258 / 0.88) 0%, oklch(0.20 0.09 258 / 0.72) 45%, oklch(0.18 0.08 258 / 0.55) 100%)",
-        }}
-      />
-      <div
-        className="absolute inset-0 -z-10"
-        aria-hidden
-        style={{
-          background:
-            "radial-gradient(60% 50% at 20% 30%, oklch(0.78 0.13 78 / 0.18), transparent 70%)",
-        }}
-      />
+    <section className="relative isolate overflow-hidden bg-[var(--primary-dark)]">
+      <div className="grid lg:grid-cols-12">
+        {/* ---------------- Message panel ---------------- */}
+        <div className="relative z-10 lg:col-span-7">
+          {/* subtle gold wash */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 -z-10"
+            style={{
+              background:
+                "radial-gradient(70% 60% at 8% 12%, oklch(0.7587 0.106 77.6 / 0.14), transparent 68%)",
+            }}
+          />
+          <div className="mx-auto flex max-w-[46rem] flex-col justify-center px-5 py-20 sm:px-8 sm:py-24 lg:px-12 lg:py-32 xl:pl-[max(3rem,calc((100vw-80rem)/2+3rem))]">
+            <motion.div
+              initial={{ opacity: 0, x: -14 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5 }}
+              className="flex items-center gap-3"
+            >
+              <span className="h-px w-10 bg-[var(--gold)]" aria-hidden />
+              <span className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-[var(--gold)]">
+                {t("home.hero.eyebrow")}
+              </span>
+            </motion.div>
 
-      <div className="container-page relative flex min-h-[92vh] flex-col justify-center py-24 sm:py-28">
-        <div className="max-w-3xl">
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="inline-flex items-center gap-2 rounded-full border border-[oklch(0.78_0.13_78)]/40 bg-white/5 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-[oklch(0.88_0.11_82)] backdrop-blur-md"
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            {t("home.hero.badge")}
-          </motion.div>
-
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.1 }}
-            className="mt-6 font-display text-4xl font-black leading-[1.02] tracking-tight text-white sm:text-6xl lg:text-7xl"
-          >
-            <span className="bg-gradient-to-r from-[oklch(0.88_0.13_82)] via-[oklch(0.80_0.15_78)] to-[oklch(0.72_0.14_72)] bg-clip-text text-transparent">
+            <motion.h1
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.08 }}
+              className="mt-6 max-w-[19ch] font-display font-semibold leading-[1.06] tracking-[-0.025em] text-white"
+              style={{ fontSize: "clamp(2rem, 4.6vw, 3.6rem)" }}
+            >
               {t("home.hero.title")}
-            </span>
-          </motion.h1>
+            </motion.h1>
 
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.2 }}
-            className="mt-5 max-w-2xl text-lg leading-relaxed text-white/85 sm:text-xl"
-          >
-            {t("home.hero.subtitle")}
-          </motion.p>
+            <motion.p
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.16 }}
+              className="mt-6 max-w-[46ch] text-base leading-relaxed text-white/75 sm:text-lg"
+            >
+              {t("home.hero.subtitle")}
+            </motion.p>
 
-          {/* Rotating benefit slider */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 0.35 }}
-            className="mt-6 flex h-10 items-center gap-3 text-white/90"
-          >
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -12 }}
-                transition={{ duration: 0.45 }}
-                className="flex items-center gap-2.5"
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, delay: 0.26 }}
+              className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center"
+            >
+              <Button
+                asChild
+                size="lg"
+                className="group h-12 rounded-sm bg-[var(--gold)] px-7 text-[0.95rem] font-semibold text-[var(--gold-foreground)] hover:bg-[var(--gold)]/90"
               >
-                <span className="grid h-8 w-8 place-items-center rounded-full bg-[oklch(0.78_0.13_78)]/25 text-[oklch(0.88_0.13_82)] ring-1 ring-[oklch(0.78_0.13_78)]/40">
-                  <SlideIcon className="h-4 w-4" />
-                </span>
-                <span className="text-base font-medium sm:text-lg">{Slide.text}</span>
-              </motion.div>
-            </AnimatePresence>
-          </motion.div>
+                <Link to="/simulator">
+                  {t("home.hero.cta_primary")}
+                  <ArrowRight className="ml-1.5 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </Link>
+              </Button>
+              <Button
+                asChild
+                variant="outline"
+                size="lg"
+                className="h-12 rounded-sm border-white/25 bg-transparent px-7 text-[0.95rem] font-semibold text-white hover:bg-white/10 hover:text-white"
+              >
+                <Link to="/programs">{t("home.hero.cta_secondary")}</Link>
+              </Button>
+            </motion.div>
 
-          {/* CTAs */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.5 }}
-            className="mt-9 flex flex-col gap-3 sm:flex-row"
-          >
-            <Button
-              asChild
-              size="lg"
-              className="group h-13 rounded-full bg-gradient-to-r from-[oklch(0.78_0.14_78)] to-[oklch(0.68_0.16_70)] px-7 text-base font-semibold text-[oklch(0.18_0.06_258)] shadow-[0_12px_40px_-8px_rgba(0,0,0,0.55)] hover:from-[oklch(0.82_0.14_80)] hover:to-[oklch(0.72_0.16_72)]"
+            {/* trust strip — factual only, no certification claim */}
+            <motion.ul
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.7, delay: 0.4 }}
+              className="mt-12 grid gap-x-8 gap-y-3 border-t border-white/12 pt-6 text-[0.8rem] text-white/60 sm:grid-cols-3"
             >
-              <Link to="/apply">
-                {t("cta.apply")}
-                <ArrowRight className="ml-1.5 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-              </Link>
-            </Button>
-            <Button
-              asChild
-              variant="outline"
-              size="lg"
-              className="h-13 rounded-full border-white/30 bg-white/5 px-7 text-base font-semibold text-white backdrop-blur-md hover:bg-white/15 hover:text-white"
-            >
-              <Link to="/simulator">{t("cta.simulate")}</Link>
-            </Button>
-          </motion.div>
+              <li className="flex items-center gap-2">
+                <Globe2 className="h-4 w-4 shrink-0 text-[var(--gold)]" aria-hidden />
+                {countryName(marketCode, locale)} · {market.currency}
+              </li>
+              <li className="flex items-center gap-2">
+                <FileCheck2 className="h-4 w-4 shrink-0 text-[var(--gold)]" aria-hidden />
+                {t("solutions.repayable")}
+              </li>
+              <li className="flex items-center gap-2">
+                <Lock className="h-4 w-4 shrink-0 text-[var(--gold)]" aria-hidden />
+                {t("transparency.item2.title")}
+              </li>
+            </motion.ul>
 
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.7, duration: 0.8 }}
-            className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-white/70"
-          >
-            <span className="inline-flex items-center gap-1.5">
-              <ShieldCheck className="h-4 w-4 text-[oklch(0.85_0.13_82)]" /> RGPD · SSL
-            </span>
-            <span>{t("solutions.repayable")}</span>
-          </motion.div>
+            <p className="mt-6 max-w-[52ch] text-[0.72rem] leading-relaxed text-white/45">
+              {t("home.hero.legal")}
+            </p>
+          </div>
+        </div>
+
+        {/* ---------------- Image panel ---------------- */}
+        <div className="relative order-first min-h-[52vw] sm:min-h-[40vw] lg:order-last lg:col-span-5 lg:min-h-[unset]">
+          <img
+            src={heroImage}
+            alt={t("home.hero.eyebrow")}
+            className="absolute inset-0 h-full w-full object-cover object-center"
+            width={1280}
+            height={1600}
+            fetchPriority="high"
+          />
+          <div
+            aria-hidden
+            className="absolute inset-0"
+            style={{
+              background:
+                "linear-gradient(90deg, oklch(0.2358 0.0255 222.6 / 0.92) 0%, oklch(0.2358 0.0255 222.6 / 0.35) 32%, transparent 70%)",
+            }}
+          />
+          <div
+            aria-hidden
+            className="absolute inset-x-0 bottom-0 h-24 lg:hidden"
+            style={{
+              background:
+                "linear-gradient(0deg, oklch(0.2358 0.0255 222.6) 0%, transparent 100%)",
+            }}
+          />
+          <span
+            aria-hidden
+            className="absolute bottom-0 left-0 h-1 w-full bg-[var(--gold)] lg:left-auto lg:right-0 lg:top-0 lg:h-full lg:w-1"
+          />
         </div>
       </div>
     </section>
