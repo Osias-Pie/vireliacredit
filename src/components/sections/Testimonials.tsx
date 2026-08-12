@@ -60,3 +60,53 @@ export function Testimonials() {
     </section>
   );
 }
+
+/** Shown while no verified testimonial exists. Qualitative only — no figures. */
+function ExperienceFallback() {
+  const { t } = useI18n();
+  const items = [
+    { icon: Calculator, title: t("experience.e1.title"), text: t("experience.e1.text") },
+    { icon: ListChecks, title: t("experience.e2.title"), text: t("experience.e2.text") },
+    { icon: Layers, title: t("experience.e3.title"), text: t("experience.e3.text") },
+    { icon: MailCheck, title: t("experience.e4.title"), text: t("experience.e4.text") },
+  ];
+
+  return (
+    <section className="bg-background py-20 sm:py-28">
+      <div className="container-page">
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
+            {t("experience.title")}
+          </h2>
+          <p className="mt-4 text-lg text-muted-foreground">{t("experience.subtitle")}</p>
+        </div>
+
+        <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {items.map((it, i) => {
+            const Icon = it.icon;
+            return (
+              <motion.div
+                key={it.title}
+                initial={{ opacity: 0, y: 22 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-80px" }}
+                transition={{ duration: 0.5, delay: i * 0.06 }}
+                className="rounded-3xl border border-border bg-card p-6 shadow-[var(--shadow-soft)]"
+              >
+                <span className="grid h-11 w-11 place-items-center rounded-xl bg-primary/10 text-primary">
+                  <Icon className="h-5 w-5" aria-hidden />
+                </span>
+                <h3 className="mt-4 text-base font-semibold">{it.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{it.text}</p>
+              </motion.div>
+            );
+          })}
+        </div>
+
+        <p className="mx-auto mt-10 max-w-2xl text-center text-xs leading-relaxed text-muted-foreground">
+          {t("testimonials.pending")}
+        </p>
+      </div>
+    </section>
+  );
+}
