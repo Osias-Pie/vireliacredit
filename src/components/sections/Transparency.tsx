@@ -1,18 +1,21 @@
 import { motion } from "framer-motion";
-import { BadgeCheck, Globe2, Scale, ShieldCheck } from "lucide-react";
+import { Eye, Route as RouteIcon, Globe2, Lock, LifeBuoy, Scale } from "lucide-react";
 import { useI18n } from "@/lib/i18n/context";
 
 /**
  * Replaces the former "proofs" gallery.
- * No transfer screenshot, no beneficiary figure: only verifiable statements.
+ * No transfer screenshot, no beneficiary figure: only verifiable statements
+ * about how the service works.
  */
 export function Transparency() {
   const { t } = useI18n();
   const items = [
-    { icon: Scale, title: t("transparency.item1.title"), text: t("transparency.item1.text") },
-    { icon: ShieldCheck, title: t("transparency.item2.title"), text: t("transparency.item2.text") },
-    { icon: Globe2, title: t("transparency.item3.title"), text: t("transparency.item3.text") },
-    { icon: BadgeCheck, title: t("transparency.item4.title"), text: t("transparency.item4.text") },
+    { icon: Eye, title: t("trust.c1.title"), text: t("trust.c1.text") },
+    { icon: RouteIcon, title: t("trust.c2.title"), text: t("trust.c2.text") },
+    { icon: Globe2, title: t("trust.c3.title"), text: t("trust.c3.text") },
+    { icon: Lock, title: t("trust.c4.title"), text: t("trust.c4.text") },
+    { icon: LifeBuoy, title: t("trust.c5.title"), text: t("trust.c5.text") },
+    { icon: Scale, title: t("trust.c6.title"), text: t("trust.c6.text") },
   ];
 
   return (
@@ -25,7 +28,8 @@ export function Transparency() {
           <p className="mt-4 text-lg text-muted-foreground">{t("transparency.subtitle")}</p>
         </div>
 
-        <div className="mt-14 grid gap-6 sm:grid-cols-2">
+        <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+
           {items.map((it, i) => {
             const Icon = it.icon;
             return (

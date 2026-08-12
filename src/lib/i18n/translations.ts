@@ -1433,4 +1433,16 @@ const it: Dict = {
 
 const hr: Dict = { ...hrExtra, ...(hrRaw as Dict) };
 
-export const translations: Record<Locale, Dict> = { fr, en, de, es, pt, it, hr };
+/**
+ * The `*Extra` dictionaries are the most recent source of truth: they are
+ * re-applied last so a stale key kept in a base dictionary can never win.
+ */
+export const translations: Record<Locale, Dict> = {
+  fr,
+  en: { ...en, ...enExtra },
+  de: { ...de, ...deExtra },
+  es: { ...es, ...esExtra },
+  pt: { ...pt, ...ptExtra },
+  it: { ...it, ...itExtra },
+  hr: { ...hr, ...hrExtra },
+};
