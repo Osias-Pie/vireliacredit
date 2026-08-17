@@ -20,23 +20,33 @@ export type Database = {
           admin_note: string | null
           amount: number
           birth_date: string
-          city: string
+          city: string | null
           company: string | null
           country: string
           created_at: string
           currency: string
-          description: string
+          description: string | null
+          documents: Json
+          duration_months: number | null
           email: string
+          employment_details: Json
+          employment_status: string | null
           first_name: string
-          gender: string
-          goals: string
+          gender: string | null
+          goals: string | null
           id: string
           income: number | null
           language: string | null
           last_name: string
+          monthly_charges: number | null
+          nationality: string | null
+          other_income: number | null
           phone: string
-          profession: string
+          processing_fee: number | null
+          processing_speed: string | null
+          profession: string | null
           program: string
+          purpose: string | null
           reference: string
           status: string
           updated_at: string
@@ -47,23 +57,33 @@ export type Database = {
           admin_note?: string | null
           amount: number
           birth_date: string
-          city: string
+          city?: string | null
           company?: string | null
           country: string
           created_at?: string
           currency: string
-          description: string
+          description?: string | null
+          documents?: Json
+          duration_months?: number | null
           email: string
+          employment_details?: Json
+          employment_status?: string | null
           first_name: string
-          gender: string
-          goals: string
+          gender?: string | null
+          goals?: string | null
           id?: string
           income?: number | null
           language?: string | null
           last_name: string
+          monthly_charges?: number | null
+          nationality?: string | null
+          other_income?: number | null
           phone: string
-          profession: string
+          processing_fee?: number | null
+          processing_speed?: string | null
+          profession?: string | null
           program: string
+          purpose?: string | null
           reference: string
           status?: string
           updated_at?: string
@@ -74,23 +94,33 @@ export type Database = {
           admin_note?: string | null
           amount?: number
           birth_date?: string
-          city?: string
+          city?: string | null
           company?: string | null
           country?: string
           created_at?: string
           currency?: string
-          description?: string
+          description?: string | null
+          documents?: Json
+          duration_months?: number | null
           email?: string
+          employment_details?: Json
+          employment_status?: string | null
           first_name?: string
-          gender?: string
-          goals?: string
+          gender?: string | null
+          goals?: string | null
           id?: string
           income?: number | null
           language?: string | null
           last_name?: string
+          monthly_charges?: number | null
+          nationality?: string | null
+          other_income?: number | null
           phone?: string
-          profession?: string
+          processing_fee?: number | null
+          processing_speed?: string | null
+          profession?: string | null
           program?: string
+          purpose?: string | null
           reference?: string
           status?: string
           updated_at?: string
