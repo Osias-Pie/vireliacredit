@@ -8,18 +8,18 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useI18n } from "@/lib/i18n/context";
-import { useMarket } from "@/lib/market/context";
 import { LOAN_PRODUCTS } from "@/lib/data/programs";
 import {
+  enabledLoanSlugs,
   formatMoney,
-  getPricing,
+  getLoanConfig,
   getProcessingFee,
-  marketProductSlugs,
   PROCESSING_SPEEDS,
+  SUPPORTED_CURRENCIES,
+  type LoanCurrency,
   type ProcessingSpeed,
   type ProductPricing,
-} from "@/config/markets";
-import { countryName } from "@/lib/market/country-name";
+} from "@/config/loans";
 import type { TranslationKey } from "@/lib/i18n/translations";
 
 interface Estimation {
@@ -59,20 +59,15 @@ export const speedKey = (s: ProcessingSpeed) => `speed.${s}` as TranslationKey;
 
 export function LoanSimulator() {
   const { t, locale } = useI18n();
-  const { market, marketCode } = useMarket();
 
-  const slugs = marketProductSlugs(market);
+  const slugs = enabledLoanSlugs() as string[];
   const available = LOAN_PRODUCTS.filter((p) => slugs.includes(p.slug));
   const [slug, setSlug] = useState(available[0]?.slug ?? "personal");
+  const [currency, setCurrency] = useState<LoanCurrency>("EUR");
   const [speed, setSpeed] = useState<ProcessingSpeed>("48h");
 
-  const pricing = getPricing(market, slug);
-  const amountRange = pricing
-    ? { min: pricing.minAmount, max: pricing.maxAmount, step: 500 }
-    : market.amountRange;
-  const durationRange = pricing
-    ? { min: Math.min(...pricing.durations), max: Math.max(...pricing.durations), step: 6 }
-    : market.durationRange;
+  const config = getLoanConfig(slug);
+  const { pricing, amountRange, durationRange } = config;
 
   const [amount, setAmount] = useState(
     Math.round((amountRange.min + amountRange.max) / 2 / 1000) * 1000,
@@ -85,18 +80,15 @@ export function LoanSimulator() {
     setAmount((a) => Math.min(amountRange.max, Math.max(amountRange.min, a)));
     setMonths((m) => Math.min(durationRange.max, Math.max(durationRange.min, m)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [marketCode, slug]);
+  }, [slug]);
 
   const result = useMemo(
     () => (pricing ? estimate(amount, months, pricing) : null),
     [pricing, amount, months],
   );
 
-  const processingFee = getProcessingFee(market, slug, speed);
-
-  const money = (v: number, currency = market.currency) =>
-    formatMoney(v, currency, `${locale}-${marketCode}`);
-
+  const processingFee = getProcessingFee(slug, speed);
+  const money = (v: number, c: string = currency) => formatMoney(v, c, locale);
   const product = available.find((p) => p.slug === slug);
 
   return (
@@ -112,9 +104,6 @@ export function LoanSimulator() {
           <p className="mt-4 text-balance text-lg text-muted-foreground">
             {t("simulator.subtitle")}
           </p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {countryName(marketCode, locale)} · {market.currency}
-          </p>
         </div>
 
         <motion.div
@@ -126,18 +115,34 @@ export function LoanSimulator() {
         >
           {/* Inputs */}
           <div className="surface-card space-y-7 p-5 sm:p-8">
-            <div>
-              <label className="text-sm font-medium">{t("simulator.product")}</label>
-              <Select value={slug} onValueChange={setSlug}>
-                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {available.map((p) => (
-                    <SelectItem key={p.slug} value={p.slug}>
-                      {t(p.titleKey as TranslationKey)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div>
+                <label className="text-sm font-medium">{t("simulator.product")}</label>
+                <Select value={slug} onValueChange={setSlug}>
+                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {available.map((p) => (
+                      <SelectItem key={p.slug} value={p.slug}>
+                        {t(p.titleKey as TranslationKey)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium">{t("field.currency")}</label>
+                <Select
+                  value={currency}
+                  onValueChange={(v) => setCurrency(v as LoanCurrency)}
+                >
+                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {SUPPORTED_CURRENCIES.map((c) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div>
@@ -189,7 +194,7 @@ export function LoanSimulator() {
                     <span className="truncate">{t("simulator.processing_fee")}</span>
                   </span>
                   <span className="shrink-0 font-semibold tabular-nums text-primary">
-                    {money(processingFee.amount, processingFee.currency)}
+                    {money(processingFee.amount)}
                   </span>
                 </div>
               )}
@@ -205,7 +210,7 @@ export function LoanSimulator() {
                 value={product ? t(product.titleKey as TranslationKey) : slug}
               />
               <Row label={t("simulator.amount")} value={money(amount)} strong />
-              <Row label={t("market.currency")} value={market.currency} />
+              <Row label={t("field.currency")} value={currency} />
               <Row
                 label={t("simulator.duration")}
                 value={`${months} ${t("simulator.months")}`}
@@ -233,7 +238,7 @@ export function LoanSimulator() {
               {processingFee && (
                 <Row
                   label={t("simulator.processing_fee")}
-                  value={money(processingFee.amount, processingFee.currency)}
+                  value={money(processingFee.amount)}
                   strong
                 />
               )}
@@ -249,7 +254,7 @@ export function LoanSimulator() {
               <Button asChild className="w-full rounded-full" size="lg">
                 <Link
                   to="/apply"
-                  search={{ program: slug, amount, duration: months, speed }}
+                  search={{ program: slug, amount, duration: months, speed, currency }}
                 >
                   {t("simulator.cta")}
                 </Link>
