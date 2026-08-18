@@ -10,7 +10,6 @@ import { Testimonials } from "@/components/sections/Testimonials";
 import { Transparency } from "@/components/sections/Transparency";
 import { FAQSection } from "@/components/sections/FAQSection";
 import { CTABand } from "@/components/sections/CTABand";
-import { UnsupportedCountryNotice } from "@/components/market/UnsupportedCountryNotice";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -38,7 +37,6 @@ function Index() {
   return (
     <PageLayout>
       <Hero />
-      <UnsupportedCountryNotice />
       <Stats />
       <ProgramsSection compact />
       <LoanSimulator />
