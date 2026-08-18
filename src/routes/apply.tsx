@@ -254,7 +254,7 @@ function ApplyPage() {
       navigate({ to: "/confirmation", search: { ref: res.reference } });
     } catch (err) {
       console.error(err);
-      toast.error(t("apply.error"));
+      toast.error(t("apply.error.generic"));
     } finally {
       setSubmitting(false);
     }
@@ -558,7 +558,7 @@ function ApplyPage() {
                     onCheckedChange={(c) => set("accept", c === true)}
                   />
                   <Label htmlFor="accept" className="text-sm font-normal leading-snug">
-                    {t("apply.accept")}
+                    {t("apply.field.accept")}
                   </Label>
                 </div>
                 {err("accept")}
@@ -597,7 +597,7 @@ function ApplyPage() {
                   ) : (
                     <Check className="mr-2 h-4 w-4" />
                   )}
-                  {t("apply.submit")}
+                  {t("cta.submit")}
                 </Button>
               )}
             </div>
