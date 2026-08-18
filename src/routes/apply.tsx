@@ -565,7 +565,7 @@ function ApplyPage() {
 
                 <p className="flex items-start gap-2 text-xs text-muted-foreground">
                   <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                  {t("apply.privacy_note")}
+                  {t("documents.note")}
                 </p>
               </>
             )}
