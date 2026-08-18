@@ -615,8 +615,10 @@ function Field({
 }) {
   return (
     <div>
-      <Label className="text-sm font-medium">{label}</Label>
-      <div className="mt-1.5">{children}</div>
+      <Label className="block text-sm font-medium">
+        <span>{label}</span>
+        <div className="mt-1.5 font-normal">{children}</div>
+      </Label>
       {error}
     </div>
   );
