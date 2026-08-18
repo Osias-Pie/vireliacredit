@@ -2,8 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { CheckCircle2, FileText } from "lucide-react";
 import { SimplePage } from "@/components/layout/SimplePage";
 import { useI18n } from "@/lib/i18n/context";
-import { useMarket } from "@/lib/market/context";
-import { countryName } from "@/lib/market/country-name";
+import { BASE_DOCUMENTS, ELIGIBILITY_CRITERIA } from "@/config/loans";
 import type { TranslationKey } from "@/lib/i18n/translations";
 
 export const Route = createFileRoute("/eligibility")({
@@ -13,12 +12,12 @@ export const Route = createFileRoute("/eligibility")({
       {
         name: "description",
         content:
-          "Critères d'éligibilité et documents à prévoir pour une demande de prêt remboursable, selon votre pays de résidence.",
+          "Critères d'éligibilité et documents à prévoir pour une demande de prêt remboursable, quel que soit votre pays de résidence.",
       },
       { property: "og:title", content: "Éligibilité au prêt — Virelia Crédit" },
       {
         property: "og:description",
-        content: "Critères et pièces justificatives par marché, avant toute demande de prêt.",
+        content: "Critères et pièces justificatives à prévoir avant toute demande de prêt.",
       },
       { property: "og:url", content: "https://vireliacredit.lovable.app/eligibility" },
     ],
@@ -28,17 +27,12 @@ export const Route = createFileRoute("/eligibility")({
 });
 
 function EligibilityPage() {
-  const { t, locale } = useI18n();
-  const { market, marketCode } = useMarket();
+  const { t } = useI18n();
 
   return (
     <SimplePage title={t("eligibility.title")} subtitle={t("eligibility.subtitle")}>
-      <p className="mx-auto max-w-2xl text-center text-sm text-muted-foreground">
-        {countryName(marketCode, locale)} · {t("market.currency")}: {market.currency}
-      </p>
-
       <ul className="mx-auto mt-8 max-w-2xl space-y-3">
-        {market.eligibility.map((key) => (
+        {ELIGIBILITY_CRITERIA.map((key) => (
           <li
             key={key}
             className="flex items-start gap-3 rounded-2xl border border-border bg-background p-4"
@@ -53,7 +47,7 @@ function EligibilityPage() {
         <h2 className="text-xl font-bold tracking-tight">{t("documents.title")}</h2>
         <p className="mt-2 text-sm text-muted-foreground">{t("documents.subtitle")}</p>
         <ul className="mt-5 space-y-3">
-          {market.documents.map((key) => (
+          {[...BASE_DOCUMENTS, "documents.income", "documents.activity"].map((key) => (
             <li
               key={key}
               className="flex items-start gap-3 rounded-2xl border border-border bg-background p-4"
@@ -64,9 +58,6 @@ function EligibilityPage() {
           ))}
         </ul>
         <p className="mt-4 text-xs text-muted-foreground">{t("documents.note")}</p>
-        {market.legalNotice && (
-          <p className="mt-3 text-xs text-muted-foreground">{market.legalNotice}</p>
-        )}
       </div>
     </SimplePage>
   );

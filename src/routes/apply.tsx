@@ -1,10 +1,7 @@
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { useMemo, useState } from "react";
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { Loader2, ShieldCheck } from "lucide-react";
+import { Check, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
 import { PageLayout } from "@/components/layout/PageLayout";
@@ -16,313 +13,622 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { PROGRAMS } from "@/lib/data/programs";
-import { CURRENCIES } from "@/lib/currency/context";
+import { LOAN_PRODUCTS } from "@/lib/data/programs";
 import { useI18n } from "@/lib/i18n/context";
-import { useMarket } from "@/lib/market/context";
-import { countryName } from "@/lib/market/country-name";
-import { ResidenceConfirm } from "@/components/market/ResidenceConfirm";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import { submitApplication } from "@/lib/applications.functions";
-
-const schema = z.object({
-  last_name: z.string().trim().min(2, "Nom requis"),
-  first_name: z.string().trim().min(2, "Prénom requis"),
-  gender: z.enum(["male", "female", "other"]),
-  birth_date: z.string().min(4, "Date requise"),
-  country: z.string().trim().min(2, "Pays requis"),
-  city: z.string().trim().min(2, "Ville requise"),
-  address: z.string().trim().min(4, "Adresse requise"),
-  phone: z.string().trim().min(6, "Téléphone requis"),
-  whatsapp: z.string().trim().optional().or(z.literal("")),
-  email: z.string().trim().email("Email invalide"),
-  profession: z.string().trim().min(2, "Profession requise"),
-  company: z.string().trim().optional().or(z.literal("")),
-  income: z.string().trim().optional().or(z.literal("")),
-  program: z.string().trim().min(1, "Sélectionnez une solution de prêt"),
-  duration: z.string().trim().optional().or(z.literal("")),
-  amount: z.coerce.number().positive("Montant invalide"),
-  currency: z.string().min(2),
-  description: z.string().trim().min(20, "Décrivez votre projet (min 20 caractères)"),
-  goals: z.string().trim().min(10, "Précisez vos objectifs"),
-  accept: z.literal(true, { message: "Vous devez accepter les conditions" }),
-});
-
-type FormValues = z.infer<typeof schema>;
+import {
+  DOCUMENTS_BY_STATUS,
+  EMPLOYMENT_STATUSES,
+  PROCESSING_SPEEDS,
+  SUPPORTED_CURRENCIES,
+  enabledLoanSlugs,
+  formatMoney,
+  getLoanConfig,
+  getProcessingFee,
+  type EmploymentStatus,
+  type LoanCurrency,
+  type ProcessingSpeed,
+} from "@/config/loans";
 
 export const Route = createFileRoute("/apply")({
   validateSearch: (
     s: Record<string, unknown>,
-  ): { program?: string; amount?: number; duration?: number; speed?: string } => ({
+  ): {
+    program?: string;
+    amount?: number;
+    duration?: number;
+    speed?: string;
+    currency?: string;
+  } => ({
     program: typeof s.program === "string" ? s.program : undefined,
-    amount: Number.isFinite(Number(s.amount)) && s.amount != null ? Number(s.amount) : undefined,
+    amount: s.amount != null && Number.isFinite(Number(s.amount)) ? Number(s.amount) : undefined,
     duration:
-      Number.isFinite(Number(s.duration)) && s.duration != null ? Number(s.duration) : undefined,
+      s.duration != null && Number.isFinite(Number(s.duration)) ? Number(s.duration) : undefined,
     speed: typeof s.speed === "string" ? s.speed : undefined,
+    currency: typeof s.currency === "string" ? s.currency : undefined,
+  }),
+  head: () => ({
+    meta: [
+      { title: "Demande de prêt — Virelia Crédit" },
+      {
+        name: "description",
+        content:
+          "Déposez votre demande de prêt remboursable en 4 étapes : informations, situation, prêt souhaité et documents.",
+      },
+      { property: "og:title", content: "Demande de prêt — Virelia Crédit" },
+      {
+        property: "og:description",
+        content: "Formulaire de demande de prêt en 4 étapes, ouvert depuis n'importe quel pays.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { property: "og:url", content: "https://vireliacredit.lovable.app/apply" },
+    ],
+    links: [{ rel: "canonical", href: "https://vireliacredit.lovable.app/apply" }],
   }),
   component: ApplyPage,
 });
 
+const TOTAL_STEPS = 4;
+
+interface FormState {
+  first_name: string;
+  last_name: string;
+  birth_date: string;
+  country: string;
+  nationality: string;
+  address: string;
+  phone: string;
+  email: string;
+  employment_status: EmploymentStatus | "";
+  details: Record<string, string>;
+  income: string;
+  other_income: string;
+  monthly_charges: string;
+  program: string;
+  amount: string;
+  currency: LoanCurrency;
+  duration: string;
+  purpose: string;
+  speed: ProcessingSpeed;
+  documents: string[];
+  accept: boolean;
+}
+
+/** Conditional fields per declared situation — labels come from i18n. */
+const DETAIL_FIELDS: Record<EmploymentStatus, { id: string; label: TranslationKey }[]> = {
+  employee: [
+    { id: "job", label: "field.job" },
+    { id: "employer", label: "field.employer" },
+    { id: "seniority", label: "field.seniority" },
+    { id: "contract", label: "field.contract" },
+  ],
+  self_employed: [
+    { id: "activity", label: "field.activity" },
+    { id: "company_name", label: "field.company_name" },
+    { id: "activity_seniority", label: "field.activity_seniority" },
+  ],
+  business_owner: [
+    { id: "job", label: "field.job" },
+    { id: "company_name", label: "field.company_name" },
+    { id: "seniority", label: "field.seniority" },
+  ],
+  retired: [{ id: "pension_provider", label: "field.pension_provider" }],
+  other: [{ id: "situation_type", label: "field.situation_type" }],
+};
+
+const INCOME_LABEL: Record<EmploymentStatus, TranslationKey> = {
+  employee: "field.net_salary",
+  self_employed: "field.net_income",
+  business_owner: "field.net_income",
+  retired: "field.pension_amount",
+  other: "field.net_income",
+};
+
 function ApplyPage() {
   const { t, locale } = useI18n();
-  const { market, marketCode, confirmed } = useMarket();
-  const navigate = useNavigate();
   const search = useSearch({ from: "/apply" });
-  const [submitting, setSubmitting] = useState(false);
+  const navigate = useNavigate();
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(schema),
-    defaultValues: {
-      last_name: "", first_name: "", gender: "male", birth_date: "",
-      country: "", city: "", address: "", phone: "", whatsapp: "", email: "",
-      profession: "", company: "", income: "",
-      program: search.program ?? "", amount: search.amount ?? 0,
-      duration: search.duration ? String(search.duration) : "", currency: "EUR",
-      description: "", goals: "", accept: undefined as unknown as true,
-    },
+  const slugs = enabledLoanSlugs() as string[];
+  const products = LOAN_PRODUCTS.filter((p) => slugs.includes(p.slug));
+
+  const [step, setStep] = useState(1);
+  const [submitting, setSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [form, setForm] = useState<FormState>({
+    first_name: "",
+    last_name: "",
+    birth_date: "",
+    country: "",
+    nationality: "",
+    address: "",
+    phone: "",
+    email: "",
+    employment_status: "",
+    details: {},
+    income: "",
+    other_income: "",
+    monthly_charges: "",
+    program: search.program && slugs.includes(search.program) ? search.program : (products[0]?.slug ?? "personal"),
+    amount: search.amount ? String(search.amount) : "",
+    currency: (SUPPORTED_CURRENCIES as readonly string[]).includes(search.currency ?? "")
+      ? (search.currency as LoanCurrency)
+      : "EUR",
+    duration: search.duration ? String(search.duration) : "",
+    purpose: "",
+    speed: (PROCESSING_SPEEDS as readonly string[]).includes(search.speed ?? "")
+      ? (search.speed as ProcessingSpeed)
+      : "48h",
+    documents: [],
+    accept: false,
   });
 
-  useEffect(() => {
-    if (search.program) form.setValue("program", search.program);
-    if (search.amount) form.setValue("amount", search.amount);
-    if (search.duration) form.setValue("duration", String(search.duration));
-  }, [search.program, search.amount, search.duration, form]);
+  const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
+    setForm((f) => ({ ...f, [key]: value }));
 
-  // Country of residence + market currency follow the selected market.
-  useEffect(() => {
-    if (!form.getValues("country")) form.setValue("country", countryName(marketCode, locale));
-    form.setValue("currency", market.currency);
-  }, [marketCode, market.currency, locale, form]);
+  const status = form.employment_status || null;
+  const requiredDocs = status ? DOCUMENTS_BY_STATUS[status] : [];
+  const fee = getProcessingFee(form.program, form.speed);
+  const durationRange = getLoanConfig(form.program).durationRange;
 
-  const onSubmit = async (values: FormValues) => {
+  const productLabel = useMemo(() => {
+    const p = products.find((x) => x.slug === form.program);
+    return p ? t(p.titleKey as TranslationKey) : form.program;
+  }, [products, form.program, t]);
+
+  function validate(current: number): boolean {
+    const e: Record<string, string> = {};
+    const required = (k: keyof FormState, min = 2) => {
+      const v = String(form[k] ?? "").trim();
+      if (v.length < min) e[k as string] = t("form.required");
+    };
+    if (current === 1) {
+      required("first_name");
+      required("last_name");
+      required("birth_date", 4);
+      required("country");
+      required("address", 4);
+      required("phone", 6);
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())) e.email = t("form.required");
+    }
+    if (current === 2) {
+      if (!form.employment_status) e.employment_status = t("form.required");
+      if (!form.income.trim()) e.income = t("form.required");
+    }
+    if (current === 3) {
+      if (!form.program) e.program = t("form.required");
+      if (!(Number(form.amount) > 0)) e.amount = t("form.required");
+      const d = Number(form.duration);
+      if (!(d >= durationRange.min && d <= durationRange.max)) e.duration = t("form.required");
+      if (form.purpose.trim().length < 10) e.purpose = t("form.required");
+    }
+    if (current === 4 && !form.accept) e.accept = t("form.required");
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  }
+
+  function next() {
+    if (!validate(step)) return;
+    setStep((s) => Math.min(TOTAL_STEPS, s + 1));
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function back() {
+    setErrors({});
+    setStep((s) => Math.max(1, s - 1));
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function onSubmit() {
+    if (!validate(4)) return;
     setSubmitting(true);
     try {
-      const { accept: _accept, duration, ...payload } = values;
-      const result = await submitApplication({
+      const res = await submitApplication({
         data: {
-          ...payload,
-          income: payload.income ? Number(payload.income) : null,
+          first_name: form.first_name.trim(),
+          last_name: form.last_name.trim(),
+          birth_date: form.birth_date,
+          country: form.country.trim(),
+          nationality: form.nationality.trim(),
+          address: form.address.trim(),
+          phone: form.phone.trim(),
+          email: form.email.trim(),
+          employment_status: form.employment_status as EmploymentStatus,
+          employment_details: form.details,
+          income: form.income,
+          other_income: form.other_income,
+          monthly_charges: form.monthly_charges,
+          program: form.program,
+          amount: Number(form.amount),
+          currency: form.currency,
+          duration_months: Number(form.duration),
+          purpose: form.purpose.trim(),
+          processing_speed: form.speed,
+          processing_fee: fee ? fee.amount : null,
+          documents: form.documents,
           language: locale,
-          market: marketCode,
-          duration_months: duration ? Number(duration) : null,
         },
       });
-      toast.success(t("apply.success"));
-      navigate({
-        to: "/confirmation",
-        search: { ref: result.reference } as never,
-      });
-    } catch (e) {
-      console.error(e);
+      navigate({ to: "/confirmation", search: { ref: res.reference } });
+    } catch (err) {
+      console.error(err);
       toast.error(t("apply.error.generic"));
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const err = form.formState.errors;
-
-  if (!confirmed) {
-    return (
-      <PageLayout>
-        <section className="container-page py-16 sm:py-24">
-          <ResidenceConfirm />
-        </section>
-      </PageLayout>
-    );
   }
+
+  const err = (k: string) =>
+    errors[k] ? <p className="mt-1 text-xs text-destructive">{errors[k]}</p> : null;
 
   return (
     <PageLayout>
-      <section className="container-page py-14 sm:py-20">
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="mx-auto max-w-3xl text-center"
-        >
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/8 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
-            <ShieldCheck className="h-3.5 w-3.5" /> Formulaire sécurisé
-          </span>
-          <h1 className="mt-5 text-3xl font-bold tracking-tight sm:text-4xl">
-            {t("apply.title")}
-          </h1>
+      <section className="py-14 sm:py-20">
+        <div className="container-page max-w-3xl">
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{t("apply.title")}</h1>
           <p className="mt-3 text-muted-foreground">{t("apply.subtitle")}</p>
-        </motion.div>
 
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="mx-auto mt-12 max-w-3xl space-y-8"
-          noValidate
-        >
-          <FormCard title={t("apply.section.personal")}>
-            <Grid>
-              <Field label="Nom" error={err.last_name?.message}>
-                <Input {...form.register("last_name")} />
-              </Field>
-              <Field label="Prénom" error={err.first_name?.message}>
-                <Input {...form.register("first_name")} />
-              </Field>
-              <Field label="Sexe" error={err.gender?.message}>
-                <Select
-                  value={form.watch("gender")}
-                  onValueChange={(v) => form.setValue("gender", v as FormValues["gender"])}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="male">Homme</SelectItem>
-                    <SelectItem value="female">Femme</SelectItem>
-                    <SelectItem value="other">Autre</SelectItem>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Date de naissance" error={err.birth_date?.message}>
-                <Input type="date" {...form.register("birth_date")} />
-              </Field>
-              <Field label="Pays" error={err.country?.message}>
-                <Input {...form.register("country")} />
-              </Field>
-              <Field label="Ville" error={err.city?.message}>
-                <Input {...form.register("city")} />
-              </Field>
-              <Field label="Adresse" className="sm:col-span-2" error={err.address?.message}>
-                <Input {...form.register("address")} />
-              </Field>
-              <Field label="Téléphone" error={err.phone?.message}>
-                <Input type="tel" {...form.register("phone")} />
-              </Field>
-              <Field label="WhatsApp (optionnel)" error={err.whatsapp?.message}>
-                <Input type="tel" {...form.register("whatsapp")} />
-              </Field>
-              <Field label="Email" className="sm:col-span-2" error={err.email?.message}>
-                <Input type="email" {...form.register("email")} />
-              </Field>
-            </Grid>
-          </FormCard>
+          {/* Progress */}
+          <div className="mt-8">
+            <p className="text-sm font-medium text-primary">
+              {t("form.step").replace("{n}", String(step)).replace("{total}", String(TOTAL_STEPS))}
+            </p>
+            <div className="mt-3 flex gap-2">
+              {[1, 2, 3, 4].map((i) => (
+                <span
+                  key={i}
+                  className={`h-1.5 flex-1 rounded-full ${i <= step ? "bg-primary" : "bg-border"}`}
+                />
+              ))}
+            </div>
+          </div>
 
-          <FormCard title={t("apply.section.professional")}>
-            <Grid>
-              <Field label="Profession" error={err.profession?.message}>
-                <Input {...form.register("profession")} />
-              </Field>
-              <Field label="Entreprise (optionnel)" error={err.company?.message}>
-                <Input {...form.register("company")} />
-              </Field>
-              <Field label="Revenus mensuels approximatifs" className="sm:col-span-2" error={err.income?.message}>
-                <Input type="number" inputMode="decimal" placeholder="Ex: 2500" {...form.register("income")} />
-              </Field>
-            </Grid>
-          </FormCard>
-
-          <FormCard title={t("apply.section.project")}>
-            <Grid>
-              <Field label="Programme choisi" error={err.program?.message}>
-                <Select
-                  value={form.watch("program")}
-                  onValueChange={(v) => form.setValue("program", v, { shouldValidate: true })}
-                >
-                  <SelectTrigger><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
-                  <SelectContent>
-                    {PROGRAMS.map((p) => (
-                      <SelectItem key={p.slug} value={p.slug}>{p.title}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Devise" error={err.currency?.message}>
-                <Select
-                  value={form.watch("currency")}
-                  onValueChange={(v) => form.setValue("currency", v)}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {CURRENCIES.map((c) => (
-                      <SelectItem key={c.code} value={c.code}>
-                        {c.symbol} — {c.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label={t("apply.field.amount")} error={err.amount?.message}>
-                <Input type="number" inputMode="decimal" {...form.register("amount")} />
-              </Field>
-              <Field label={t("apply.field.duration")} error={err.duration?.message}>
-                <Input type="number" inputMode="numeric" {...form.register("duration")} />
-              </Field>
-              <Field label="Description du projet" className="sm:col-span-2" error={err.description?.message}>
-                <Textarea rows={4} {...form.register("description")} />
-              </Field>
-              <Field label="Objectifs" className="sm:col-span-2" error={err.goals?.message}>
-                <Textarea rows={3} {...form.register("goals")} />
-              </Field>
-            </Grid>
-          </FormCard>
-
-          <div className="surface-card p-6">
-            <label className="flex items-start gap-3 text-sm">
-              <Checkbox
-                checked={!!form.watch("accept")}
-                onCheckedChange={(v) =>
-                  form.setValue("accept", (v === true) as true, { shouldValidate: true })
-                }
-                className="mt-0.5"
-              />
-              <span className="text-muted-foreground">
-                J'accepte que mes données soient traitées conformément à la{" "}
-                <a href="/privacy" className="text-primary underline-offset-2 hover:underline">
-                  politique de confidentialité
-                </a>
-                .
-              </span>
-            </label>
-            {err.accept?.message && (
-              <p className="mt-2 text-xs text-destructive">{err.accept.message}</p>
+          <motion.div
+            key={step}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25 }}
+            className="surface-card mt-8 space-y-6 p-5 sm:p-8"
+          >
+            {/* ---------------- STEP 1 ---------------- */}
+            {step === 1 && (
+              <>
+                <h2 className="text-xl font-semibold">{t("form.step1.title")}</h2>
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <Field label={t("field.first_name")} error={err("first_name")}>
+                    <Input value={form.first_name} onChange={(e) => set("first_name", e.target.value)} />
+                  </Field>
+                  <Field label={t("field.last_name")} error={err("last_name")}>
+                    <Input value={form.last_name} onChange={(e) => set("last_name", e.target.value)} />
+                  </Field>
+                  <Field label={t("field.birth_date")} error={err("birth_date")}>
+                    <Input type="date" value={form.birth_date} onChange={(e) => set("birth_date", e.target.value)} />
+                  </Field>
+                  <Field label={t("field.country")} error={err("country")}>
+                    <Input value={form.country} onChange={(e) => set("country", e.target.value)} />
+                  </Field>
+                  <Field label={t("field.nationality")}>
+                    <Input value={form.nationality} onChange={(e) => set("nationality", e.target.value)} />
+                  </Field>
+                  <Field label={t("field.phone")} error={err("phone")}>
+                    <Input value={form.phone} onChange={(e) => set("phone", e.target.value)} />
+                  </Field>
+                  <div className="sm:col-span-2">
+                    <Field label={t("field.address")} error={err("address")}>
+                      <Input value={form.address} onChange={(e) => set("address", e.target.value)} />
+                    </Field>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Field label={t("field.email")} error={err("email")}>
+                      <Input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} />
+                    </Field>
+                  </div>
+                </div>
+              </>
             )}
-          </div>
 
-          <div className="flex justify-end">
-            <Button
-              type="submit"
-              size="lg"
-              disabled={submitting}
-              className="h-12 min-w-52 rounded-full px-6 shadow-[var(--shadow-elegant)]"
-            >
-              {submitting ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Envoi en cours…</>
+            {/* ---------------- STEP 2 ---------------- */}
+            {step === 2 && (
+              <>
+                <h2 className="text-xl font-semibold">{t("form.step2.title")}</h2>
+                <Field label={t("field.status")} error={err("employment_status")}>
+                  <Select
+                    value={form.employment_status}
+                    onValueChange={(v) => {
+                      set("employment_status", v as EmploymentStatus);
+                      set("details", {});
+                    }}
+                  >
+                    <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                    <SelectContent>
+                      {EMPLOYMENT_STATUSES.map((s) => (
+                        <SelectItem key={s} value={s}>{t(`status.${s}` as TranslationKey)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+
+                {status && (
+                  <div className="grid gap-5 sm:grid-cols-2">
+                    {DETAIL_FIELDS[status].map((f) => (
+                      <Field key={f.id} label={t(f.label)}>
+                        <Input
+                          value={form.details[f.id] ?? ""}
+                          onChange={(e) =>
+                            set("details", { ...form.details, [f.id]: e.target.value })
+                          }
+                        />
+                      </Field>
+                    ))}
+                    <Field label={t(INCOME_LABEL[status])} error={err("income")}>
+                      <Input
+                        inputMode="numeric"
+                        value={form.income}
+                        onChange={(e) => set("income", e.target.value)}
+                      />
+                    </Field>
+                    <Field label={`${t("field.other_income")} (${t("form.optional")})`}>
+                      <Input
+                        inputMode="numeric"
+                        value={form.other_income}
+                        onChange={(e) => set("other_income", e.target.value)}
+                      />
+                    </Field>
+                    <Field label={`${t("field.monthly_charges")} (${t("form.optional")})`}>
+                      <Input
+                        inputMode="numeric"
+                        value={form.monthly_charges}
+                        onChange={(e) => set("monthly_charges", e.target.value)}
+                      />
+                    </Field>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* ---------------- STEP 3 ---------------- */}
+            {step === 3 && (
+              <>
+                <h2 className="text-xl font-semibold">{t("form.step3.title")}</h2>
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <Field label={t("field.loan_type")} error={err("program")}>
+                    <Select value={form.program} onValueChange={(v) => set("program", v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {products.map((p) => (
+                          <SelectItem key={p.slug} value={p.slug}>
+                            {t(p.titleKey as TranslationKey)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field label={t("field.currency")}>
+                    <Select
+                      value={form.currency}
+                      onValueChange={(v) => set("currency", v as LoanCurrency)}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {SUPPORTED_CURRENCIES.map((c) => (
+                          <SelectItem key={c} value={c}>{c}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field label={t("field.amount")} error={err("amount")}>
+                    <Input
+                      inputMode="numeric"
+                      value={form.amount}
+                      onChange={(e) => set("amount", e.target.value)}
+                    />
+                  </Field>
+                  <Field
+                    label={`${t("field.duration")} (${durationRange.min}–${durationRange.max})`}
+                    error={err("duration")}
+                  >
+                    <Input
+                      inputMode="numeric"
+                      value={form.duration}
+                      onChange={(e) => set("duration", e.target.value)}
+                    />
+                  </Field>
+                  <div className="sm:col-span-2">
+                    <Field label={t("field.speed")}>
+                      <Select
+                        value={form.speed}
+                        onValueChange={(v) => set("speed", v as ProcessingSpeed)}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {PROCESSING_SPEEDS.map((s) => (
+                            <SelectItem key={s} value={s}>
+                              {t(`speed.${s}` as TranslationKey)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Field label={t("field.purpose")} error={err("purpose")}>
+                      <Textarea
+                        rows={4}
+                        value={form.purpose}
+                        onChange={(e) => set("purpose", e.target.value)}
+                      />
+                    </Field>
+                  </div>
+                </div>
+                {fee && (
+                  <p className="rounded-2xl bg-primary/5 p-3.5 text-sm text-muted-foreground">
+                    {t("simulator.processing_fee")} :{" "}
+                    <strong className="text-primary">
+                      {formatMoney(fee.amount, form.currency, locale)}
+                    </strong>{" "}
+                    — {t("form.fee_status.pending")}
+                  </p>
+                )}
+              </>
+            )}
+
+            {/* ---------------- STEP 4 ---------------- */}
+            {step === 4 && (
+              <>
+                <h2 className="text-xl font-semibold">{t("form.step4.title")}</h2>
+
+                <div>
+                  <h3 className="text-sm font-semibold">{t("form.documents.title")}</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">{t("form.documents.hint")}</p>
+                  <ul className="mt-4 space-y-3">
+                    {[...requiredDocs, "documents.guarantor"].map((key) => (
+                      <li key={key} className="flex items-start gap-3">
+                        <Checkbox
+                          id={key}
+                          checked={form.documents.includes(key)}
+                          onCheckedChange={(c) =>
+                            set(
+                              "documents",
+                              c
+                                ? [...form.documents, key]
+                                : form.documents.filter((d) => d !== key),
+                            )
+                          }
+                        />
+                        <Label htmlFor={key} className="text-sm font-normal leading-snug">
+                          {t(key as TranslationKey)}
+                        </Label>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Summary */}
+                <div className="rounded-2xl border border-border bg-muted/40 p-4 sm:p-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-semibold">{t("form.summary.title")}</h3>
+                    <Button variant="ghost" size="sm" onClick={() => setStep(1)}>
+                      {t("form.edit")}
+                    </Button>
+                  </div>
+                  <dl className="mt-4 space-y-2 text-sm">
+                    <Sum label={t("field.last_name")} value={`${form.first_name} ${form.last_name}`} />
+                    <Sum label={t("field.country")} value={form.country} />
+                    <Sum
+                      label={t("field.status")}
+                      value={status ? t(`status.${status}` as TranslationKey) : "—"}
+                    />
+                    <Sum label={t("field.loan_type")} value={productLabel} />
+                    <Sum
+                      label={t("field.amount")}
+                      value={formatMoney(Number(form.amount) || 0, form.currency, locale)}
+                    />
+                    <Sum label={t("field.currency")} value={form.currency} />
+                    <Sum
+                      label={t("field.duration")}
+                      value={`${form.duration} ${t("simulator.months")}`}
+                    />
+                    <Sum label={t("field.speed")} value={t(`speed.${form.speed}` as TranslationKey)} />
+                    <Sum
+                      label={t("form.summary.fee_status")}
+                      value={
+                        fee
+                          ? `${formatMoney(fee.amount, form.currency, locale)} — ${t("form.fee_status.pending")}`
+                          : t("form.fee_status.not_applicable")
+                      }
+                    />
+                    <Sum
+                      label={t("form.documents.title")}
+                      value={
+                        form.documents.length
+                          ? form.documents.map((d) => t(d as TranslationKey)).join(" · ")
+                          : "—"
+                      }
+                    />
+                    <Sum label={t("form.summary.contact")} value={`${form.email} · ${form.phone}`} />
+                  </dl>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="accept"
+                    checked={form.accept}
+                    onCheckedChange={(c) => set("accept", c === true)}
+                  />
+                  <Label htmlFor="accept" className="text-sm font-normal leading-snug">
+                    {t("apply.field.accept")}
+                  </Label>
+                </div>
+                {err("accept")}
+
+                <p className="flex items-start gap-2 text-xs text-muted-foreground">
+                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  {t("documents.note")}
+                </p>
+              </>
+            )}
+
+            {/* Navigation */}
+            <div className="flex flex-col-reverse gap-3 border-t border-border pt-6 sm:flex-row sm:justify-between">
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full"
+                onClick={back}
+                disabled={step === 1 || submitting}
+              >
+                {t("form.back")}
+              </Button>
+              {step < TOTAL_STEPS ? (
+                <Button type="button" className="rounded-full" onClick={next}>
+                  {t("form.next")}
+                </Button>
               ) : (
-                "Envoyer ma demande"
+                <Button
+                  type="button"
+                  className="rounded-full"
+                  onClick={onSubmit}
+                  disabled={submitting}
+                >
+                  {submitting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Check className="mr-2 h-4 w-4" />
+                  )}
+                  {t("cta.submit")}
+                </Button>
               )}
-            </Button>
-          </div>
-        </form>
+            </div>
+          </motion.div>
+        </div>
       </section>
     </PageLayout>
   );
 }
 
-function FormCard({ title, children }: { title: string; children: React.ReactNode }) {
+function Field({
+  label, error, children,
+}: {
+  label: string; error?: React.ReactNode; children: React.ReactNode;
+}) {
   return (
-    <div className="surface-card p-6 sm:p-8">
-      <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
-      <div className="mt-6">{children}</div>
+    <div>
+      <Label className="block text-sm font-medium">
+        <span>{label}</span>
+        <div className="mt-1.5 font-normal">{children}</div>
+      </Label>
+      {error}
     </div>
   );
 }
 
-function Grid({ children }: { children: React.ReactNode }) {
-  return <div className="grid gap-5 sm:grid-cols-2">{children}</div>;
-}
-
-function Field({
-  label, error, className, children,
-}: {
-  label: string; error?: string; className?: string; children: React.ReactNode;
-}) {
+function Sum({ label, value }: { label: string; value: string }) {
   return (
-    <div className={className}>
-      <Label className="text-sm font-medium">{label}</Label>
-      <div className="mt-1.5">{children}</div>
-      {error && <p className="mt-1.5 text-xs text-destructive">{error}</p>}
+    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="max-w-[60%] text-right font-medium">{value}</dd>
     </div>
   );
 }

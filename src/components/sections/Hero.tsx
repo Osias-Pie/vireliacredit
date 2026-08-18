@@ -2,8 +2,6 @@ import { Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { ArrowRight, Lock, Globe2, FileCheck2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n/context";
-import { useMarket } from "@/lib/market/context";
-import { countryName } from "@/lib/market/country-name";
 import { Button } from "@/components/ui/button";
 import heroImage from "@/assets/hero-advisory.jpg";
 
@@ -14,7 +12,6 @@ import heroImage from "@/assets/hero-advisory.jpg";
  */
 export function Hero() {
   const { t, locale } = useI18n();
-  const { market, marketCode } = useMarket();
 
   return (
     <section className="relative isolate overflow-hidden bg-[var(--primary-dark)]">
@@ -97,7 +94,7 @@ export function Hero() {
             >
               <li className="flex items-center gap-2">
                 <Globe2 className="h-4 w-4 shrink-0 text-[var(--gold)]" aria-hidden />
-                {countryName(marketCode, locale)} · {market.currency}
+                {t("home.hero.badge")}
               </li>
               <li className="flex items-center gap-2">
                 <FileCheck2 className="h-4 w-4 shrink-0 text-[var(--gold)]" aria-hidden />

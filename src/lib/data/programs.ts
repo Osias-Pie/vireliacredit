@@ -3,7 +3,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-/** Loan solutions (repayable loans). Commercial conditions live in src/config/markets.ts. */
+/** Loan solutions (repayable loans). Commercial conditions live in src/config/loans.ts. */
 export interface LoanProduct {
   slug: string;
   icon: LucideIcon;
