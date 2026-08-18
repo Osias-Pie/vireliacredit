@@ -94,7 +94,7 @@ export function Hero() {
             >
               <li className="flex items-center gap-2">
                 <Globe2 className="h-4 w-4 shrink-0 text-[var(--gold)]" aria-hidden />
-                {t("solutions.international")}
+                {t("home.hero.badge")}
               </li>
               <li className="flex items-center gap-2">
                 <FileCheck2 className="h-4 w-4 shrink-0 text-[var(--gold)]" aria-hidden />
