@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { ArrowRight, Lock, FileCheck2, SearchCheck } from "lucide-react";
+import { ArrowRight, FileCheck2, Lock, SearchCheck } from "lucide-react";
 import { useI18n } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/button";
 import heroImage from "@/assets/hero-advisory.jpg";
@@ -9,107 +9,110 @@ export function Hero() {
   const { t } = useI18n();
 
   return (
-    <section className="relative isolate overflow-hidden bg-[var(--primary-dark)] lg:min-h-[690px]">
-      <div className="mx-auto grid max-w-[96rem] lg:min-h-[690px] lg:grid-cols-[1.08fr_0.92fr]">
-        <div className="relative z-10 flex items-center">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 -z-10"
-            style={{
-              background:
-                "radial-gradient(65% 62% at 12% 15%, rgba(21,94,239,.28), transparent 72%)",
-            }}
-          />
-          <div className="w-full px-5 py-16 sm:px-8 sm:py-20 lg:px-12 lg:py-24 xl:pl-[max(3rem,calc((100vw-80rem)/2+3rem))] xl:pr-16">
-            <motion.div
-              initial={{ opacity: 0, x: -12 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.45 }}
-              className="flex items-center gap-3"
+    <section className="relative isolate min-h-[680px] overflow-hidden bg-[#071D2A] sm:min-h-[720px] lg:min-h-[760px]">
+      <motion.img
+        src={heroImage}
+        alt=""
+        aria-hidden
+        initial={{ scale: 1.025 }}
+        animate={{ scale: 1 }}
+        transition={{ duration: 1.4, ease: "easeOut" }}
+        className="absolute inset-0 h-full w-full object-cover object-[64%_center] sm:object-[68%_center] lg:object-center"
+        width={1600}
+        height={1100}
+        fetchPriority="high"
+      />
+
+      <div
+        aria-hidden
+        className="absolute inset-0 bg-[linear-gradient(90deg,rgba(7,29,42,0.97)_0%,rgba(7,29,42,0.91)_37%,rgba(7,29,42,0.62)_62%,rgba(7,29,42,0.22)_100%)]"
+      />
+      <div
+        aria-hidden
+        className="absolute inset-0 bg-[linear-gradient(0deg,rgba(7,29,42,0.5)_0%,transparent_48%,rgba(7,29,42,0.18)_100%)]"
+      />
+      <div
+        aria-hidden
+        className="absolute -left-28 top-20 h-96 w-96 rounded-full bg-[#155EEF]/20 blur-3xl"
+      />
+
+      <div className="container-page relative z-10 flex min-h-[680px] items-center py-24 sm:min-h-[720px] lg:min-h-[760px] lg:py-28">
+        <div className="max-w-3xl">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45 }}
+            className="flex items-center gap-3"
+          >
+            <span className="h-px w-10 bg-[#7EB0FF]" />
+            <span className="text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-[#DCE9FF]">
+              Solutions de financement
+            </span>
+          </motion.div>
+
+          <motion.h1
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.58, delay: 0.08 }}
+            className="mt-6 max-w-[16ch] font-display text-[clamp(2.7rem,6vw,5.7rem)] font-semibold leading-[0.98] tracking-[-0.05em] text-white"
+          >
+            {t("home.hero.title")}
+          </motion.h1>
+
+          <motion.p
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, delay: 0.16 }}
+            className="mt-7 max-w-[42rem] text-base leading-7 text-white/82 sm:text-lg sm:leading-8"
+          >
+            {t("home.hero.subtitle")}
+          </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.24 }}
+            className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center"
+          >
+            <Button asChild size="lg" className="group h-12 rounded-full bg-[#155EEF] px-7 font-semibold text-white shadow-xl shadow-blue-950/30 hover:bg-[#0F4DD4]">
+              <Link to="/eligibility">
+                {t("home.hero.cta_primary")}
+                <ArrowRight className="ml-1.5 h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              size="lg"
+              className="h-12 rounded-full border-white/30 bg-white/8 px-7 font-semibold text-white backdrop-blur-sm hover:bg-white/14 hover:text-white"
             >
-              <span className="h-px w-9 bg-[#8FB4FF]" aria-hidden />
-              <span className="text-[0.72rem] font-semibold uppercase tracking-[0.2em] text-[#BFD3FF]">
-                {t("home.hero.eyebrow")}
-              </span>
-            </motion.div>
+              <Link to="/programs">{t("cta.discover")}</Link>
+            </Button>
+          </motion.div>
 
-            <motion.h1
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.55, delay: 0.07 }}
-              className="mt-6 max-w-[17ch] font-display text-[clamp(2.35rem,4.5vw,4.5rem)] font-semibold leading-[1.02] tracking-[-0.04em] text-white"
-            >
-              {t("home.hero.title")}
-            </motion.h1>
+          <motion.ul
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.36 }}
+            className="mt-12 grid max-w-2xl gap-3 border-t border-white/16 pt-6 text-[0.82rem] text-white/72 sm:grid-cols-3"
+          >
+            <li className="flex items-center gap-2">
+              <SearchCheck className="h-4 w-4 shrink-0 text-[#8FB4FF]" />
+              Éligibilité en quelques questions
+            </li>
+            <li className="flex items-center gap-2">
+              <FileCheck2 className="h-4 w-4 shrink-0 text-[#8FB4FF]" />
+              Demande structurée en ligne
+            </li>
+            <li className="flex items-center gap-2">
+              <Lock className="h-4 w-4 shrink-0 text-[#8FB4FF]" />
+              Suivi privé par référence
+            </li>
+          </motion.ul>
 
-            <motion.p
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.55, delay: 0.14 }}
-              className="mt-7 max-w-[42rem] text-base leading-7 text-white/75 sm:text-lg sm:leading-8"
-            >
-              {t("home.hero.subtitle")}
-            </motion.p>
-
-            <motion.div
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.22 }}
-              className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center"
-            >
-              <Button asChild size="lg" className="group h-12 rounded-full px-7 text-[0.95rem] font-semibold shadow-lg shadow-blue-950/20">
-                <Link to="/eligibility">
-                  {t("home.hero.cta_primary")}
-                  <ArrowRight className="ml-1.5 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </Link>
-              </Button>
-              <Button
-                asChild
-                variant="outline"
-                size="lg"
-                className="h-12 rounded-full border-white/25 bg-white/5 px-7 text-[0.95rem] font-semibold text-white hover:bg-white/10 hover:text-white"
-              >
-                <Link to="/apply">{t("nav.apply")}</Link>
-              </Button>
-            </motion.div>
-
-            <motion.ul
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.6, delay: 0.34 }}
-              className="mt-11 grid max-w-2xl gap-3 border-t border-white/12 pt-6 text-[0.8rem] text-white/65 sm:grid-cols-3"
-            >
-              <li className="flex items-center gap-2">
-                <SearchCheck className="h-4 w-4 shrink-0 text-[#8FB4FF]" aria-hidden />
-                {t("cta.check_eligibility")}
-              </li>
-              <li className="flex items-center gap-2">
-                <FileCheck2 className="h-4 w-4 shrink-0 text-[#8FB4FF]" aria-hidden />
-                {t("solutions.repayable")}
-              </li>
-              <li className="flex items-center gap-2">
-                <Lock className="h-4 w-4 shrink-0 text-[#8FB4FF]" aria-hidden />
-                {t("transparency.item2.title")}
-              </li>
-            </motion.ul>
-
-            <p className="mt-5 max-w-[52ch] text-[0.72rem] leading-relaxed text-white/45">
-              {t("home.hero.legal")}
-            </p>
-          </div>
-        </div>
-
-        <div className="relative order-first min-h-[55vw] sm:min-h-[38rem] lg:order-last lg:min-h-full">
-          <img
-            src={heroImage}
-            alt={t("home.hero.eyebrow")}
-            className="absolute inset-0 h-full w-full object-cover object-center"
-            width={1280}
-            height={1600}
-            fetchPriority="high"
-          />
-          <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-[#0B1F3A]/45 via-transparent to-transparent lg:bg-gradient-to-r lg:from-[#0B1F3A]/55 lg:via-transparent lg:to-transparent" />
-          <div aria-hidden className="absolute inset-x-0 bottom-0 h-px bg-white/20 lg:inset-y-0 lg:left-0 lg:h-full lg:w-px" />
+          <p className="mt-5 max-w-[58ch] text-[0.72rem] leading-relaxed text-white/48">
+            {t("home.hero.legal")}
+          </p>
         </div>
       </div>
     </section>
