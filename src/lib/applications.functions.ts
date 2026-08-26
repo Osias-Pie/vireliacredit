@@ -84,7 +84,10 @@ async function removeUploadedObjects(client: Awaited<ReturnType<typeof serverSup
   if (docs?.length) {
     await client.storage.from("application-documents").remove(docs.map((file) => `${applicationId}/${file.name}`));
   }
-  await client.storage.from("contracts").remove([`${applicationId}/contract-draft.pdf`]);
+  await client.storage.from("contracts").remove([
+    `${applicationId}/contract-draft.pdf`,
+    `${applicationId}/contract-narrative.pdf`,
+  ]);
 }
 
 export const submitApplication = createServerFn({ method: "POST" })
@@ -148,7 +151,7 @@ export const submitApplication = createServerFn({ method: "POST" })
         documentMeta.push({ key: file.key, filename: file.filename, path });
       }
 
-      const pdf = await generateLoanContractPdf({
+      const contractInput = {
         reference,
         firstName: data.first_name,
         lastName: data.last_name,
@@ -172,19 +175,31 @@ export const submitApplication = createServerFn({ method: "POST" })
         ibanAccountNumber: data.iban_account_number,
         swiftBic: data.swift_bic || "",
         confirmationDate: new Date().toISOString().slice(0, 10),
-        layout: data.contract_layout,
-      });
+      } as const;
 
-      const contractPath = `${applicationId}/contract-draft.pdf`;
-      const { error: contractError } = await client.storage.from("contracts").upload(contractPath, pdf, {
-        contentType: "application/pdf",
-        upsert: true,
-      });
-      if (contractError) throw new Error("contract_upload_failed");
+      const [structuredPdf, narrativePdf] = await Promise.all([
+        generateLoanContractPdf({ ...contractInput, layout: "structured" }),
+        generateLoanContractPdf({ ...contractInput, layout: "narrative" }),
+      ]);
+
+      const structuredPath = `${applicationId}/contract-draft.pdf`;
+      const narrativePath = `${applicationId}/contract-narrative.pdf`;
+
+      const [{ error: structuredError }, { error: narrativeError }] = await Promise.all([
+        client.storage.from("contracts").upload(structuredPath, structuredPdf, {
+          contentType: "application/pdf",
+          upsert: true,
+        }),
+        client.storage.from("contracts").upload(narrativePath, narrativePdf, {
+          contentType: "application/pdf",
+          upsert: true,
+        }),
+      ]);
+      if (structuredError || narrativeError) throw new Error("contract_upload_failed");
 
       const { error: updateError } = await client
         .from("applications")
-        .update({ documents: documentMeta, contract_path: contractPath })
+        .update({ documents: documentMeta, contract_path: structuredPath })
         .eq("id", applicationId);
       if (updateError) throw new Error("application_finalize_failed");
     } catch (error) {
