@@ -30,13 +30,7 @@ const schema = z.object({
   address: z.string().trim().min(1).max(300),
   phone: z.string().trim().min(4).max(40),
   email: z.string().trim().email().max(200),
-  employment_status: z.enum([
-    "employee",
-    "self_employed",
-    "business_owner",
-    "retired",
-    "other",
-  ]),
+  employment_status: z.enum(["employee", "self_employed", "business_owner", "retired", "other"]),
   employment_details: z.record(z.string(), z.string().max(300)).default({}),
   income: num,
   other_income: num,
@@ -65,16 +59,10 @@ async function serverSupabase() {
   const { createClient } = await import("@supabase/supabase-js");
   const url = process.env["SUPABASE_URL"];
   const service = process.env["SUPABASE_SERVICE_ROLE_KEY"];
-  const pub = process.env["SUPABASE_PUBLISHABLE_KEY"];
-  if (!url) throw new Error("supabase_config_missing");
-  const key = service || pub;
-  if (!key) throw new Error("supabase_config_missing");
-  return {
-    client: createClient(url, key, {
-      auth: { persistSession: false, autoRefreshToken: false, storage: undefined },
-    }),
-    canStorage: Boolean(service),
-  };
+  if (!url || !service) throw new Error("supabase_server_config_missing");
+  return createClient(url, service, {
+    auth: { persistSession: false, autoRefreshToken: false, storage: undefined },
+  });
 }
 
 function decodeBase64(data: string): Uint8Array {
@@ -82,15 +70,19 @@ function decodeBase64(data: string): Uint8Array {
   return Uint8Array.from(Buffer.from(clean, "base64"));
 }
 
+async function removeUploadedObjects(client: Awaited<ReturnType<typeof serverSupabase>>, applicationId: string) {
+  const { data: docs } = await client.storage.from("application-documents").list(applicationId);
+  if (docs?.length) {
+    await client.storage.from("application-documents").remove(docs.map((file) => `${applicationId}/${file.name}`));
+  }
+  await client.storage.from("contracts").remove([`${applicationId}/contract-draft.pdf`]);
+}
+
 export const submitApplication = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => schema.parse(data))
   .handler(async ({ data }) => {
-    const { client, canStorage } = await serverSupabase();
-
-    const fee =
-      data.processing_fee ??
-      getProcessingFee(data.program, data.processing_speed as ProcessingSpeed)?.amount ??
-      null;
+    const client = await serverSupabase();
+    const fee = data.processing_fee ?? getProcessingFee(data.program, data.processing_speed as ProcessingSpeed)?.amount ?? null;
 
     const payload = {
       first_name: data.first_name,
@@ -122,41 +114,28 @@ export const submitApplication = createServerFn({ method: "POST" })
       swift_bic: data.swift_bic ?? "",
     };
 
-    const { data: created, error } = await client.rpc("submit_application", {
-      p: payload,
-    });
-
+    const { data: created, error } = await client.rpc("submit_application", { p: payload });
     if (error) {
-      console.error("[submitApplication] rpc error", error.message);
+      console.error("[submitApplication] application creation failed");
       throw new Error("insert_failed");
     }
 
     const result = created as { id?: string; reference?: string } | string | null;
-    const reference =
-      typeof result === "string" ? result : result?.reference;
+    const reference = typeof result === "string" ? result : result?.reference;
     const applicationId = typeof result === "object" && result ? result.id : null;
-
-    if (!reference) throw new Error("insert_failed");
+    if (!reference || !applicationId) throw new Error("insert_failed");
 
     const documentMeta: { key: string; filename: string; path: string }[] = [];
 
-    if (canStorage && applicationId) {
+    try {
       for (const file of data.files) {
-        const ext = file.filename.includes(".")
-          ? file.filename.slice(file.filename.lastIndexOf("."))
-          : "";
+        const ext = file.filename.includes(".") ? file.filename.slice(file.filename.lastIndexOf(".")) : "";
         const path = `${applicationId}/${file.key}${ext}`;
         const bytes = decodeBase64(file.contentBase64);
-        const { error: upErr } = await client.storage
+        const { error: uploadError } = await client.storage
           .from("application-documents")
-          .upload(path, bytes, {
-            contentType: file.mime || "application/octet-stream",
-            upsert: true,
-          });
-        if (upErr) {
-          console.error("[submitApplication] document upload failed");
-          continue;
-        }
+          .upload(path, bytes, { contentType: file.mime || "application/octet-stream", upsert: true });
+        if (uploadError) throw new Error("document_upload_failed");
         documentMeta.push({ key: file.key, filename: file.filename, path });
       }
 
@@ -183,19 +162,22 @@ export const submitApplication = createServerFn({ method: "POST" })
       });
 
       const contractPath = `${applicationId}/contract-draft.pdf`;
-      const { error: cErr } = await client.storage.from("contracts").upload(contractPath, pdf, {
+      const { error: contractError } = await client.storage.from("contracts").upload(contractPath, pdf, {
         contentType: "application/pdf",
         upsert: true,
       });
-      if (cErr) console.error("[submitApplication] contract upload failed");
+      if (contractError) throw new Error("contract_upload_failed");
 
-      await client
+      const { error: updateError } = await client
         .from("applications")
-        .update({
-          documents: documentMeta,
-          contract_path: cErr ? null : contractPath,
-        })
+        .update({ documents: documentMeta, contract_path: contractPath })
         .eq("id", applicationId);
+      if (updateError) throw new Error("application_finalize_failed");
+    } catch (error) {
+      await removeUploadedObjects(client, applicationId);
+      await client.from("applications").delete().eq("id", applicationId);
+      console.error("[submitApplication] secure file finalization failed");
+      throw error;
     }
 
     return { reference, status: "nouvelle_demande" as const };
