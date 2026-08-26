@@ -49,11 +49,20 @@ const schema = z.object({
   account_holder_name: z.string().trim().min(2).max(160),
   iban_account_number: z.string().trim().min(6).max(64),
   swift_bic: z.string().trim().max(20).optional().or(z.literal("")),
+  contract_layout: z.enum(["structured", "narrative"]).default("structured"),
   files: z.array(fileSchema).max(8).default([]),
   contract_confirmed: z.literal(true),
 });
 
 export type ApplicationInput = z.input<typeof schema>;
+
+const EMPLOYMENT_LABELS: Record<string, string> = {
+  employee: "Salarié",
+  self_employed: "Indépendant",
+  business_owner: "Chef d’entreprise",
+  retired: "Retraité",
+  other: "Autre situation",
+};
 
 async function serverSupabase() {
   const { createClient } = await import("@supabase/supabase-js");
@@ -140,6 +149,7 @@ export const submitApplication = createServerFn({ method: "POST" })
       }
 
       const pdf = await generateLoanContractPdf({
+        reference,
         firstName: data.first_name,
         lastName: data.last_name,
         birthDate: data.birth_date,
@@ -147,18 +157,22 @@ export const submitApplication = createServerFn({ method: "POST" })
         address: data.address,
         phone: data.phone,
         email: data.email,
+        employmentLabel: EMPLOYMENT_LABELS[data.employment_status] ?? data.employment_status,
+        incomeLabel: data.income != null ? `${data.income} ${data.currency}` : "Non renseigné",
+        monthlyChargesLabel: data.monthly_charges != null ? `${data.monthly_charges} ${data.currency}` : "Non renseigné",
         programLabel: data.program_label || data.program,
         purpose: data.purpose,
         amountLabel: `${data.amount} ${data.currency}`,
         currency: data.currency,
         durationMonths: String(data.duration_months),
         processingSpeedLabel: data.speed_label || data.processing_speed,
-        processingFeeLabel: fee != null ? `${fee} ${data.currency}` : "—",
+        processingFeeLabel: fee != null ? `${fee} ${data.currency}` : "Non applicable",
         bankName: data.bank_name,
         accountHolderName: data.account_holder_name,
         ibanAccountNumber: data.iban_account_number,
         swiftBic: data.swift_bic || "",
         confirmationDate: new Date().toISOString().slice(0, 10),
+        layout: data.contract_layout,
       });
 
       const contractPath = `${applicationId}/contract-draft.pdf`;
