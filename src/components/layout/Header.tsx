@@ -21,56 +21,51 @@ export function Header() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  useEffect(() => { setOpen(false); }, [pathname]);
+  useEffect(() => setOpen(false), [pathname]);
 
   const links: { to: string; label: string }[] = [
-    { to: "/", label: t("nav.home") },
     { to: "/programs", label: t("nav.solutions") },
     { to: "/eligibility", label: t("nav.eligibility") },
-    { to: "/process", label: t("nav.process") },
     { to: "/suivi", label: t("nav.track") },
     { to: "/faq", label: t("nav.faq") },
-    { to: "/about", label: t("nav.about") },
-    { to: "/contact", label: t("nav.contact") },
   ];
-
 
   return (
     <header
       className={cn(
         "fixed inset-x-0 top-0 z-50 transition-all duration-300",
         scrolled
-          ? "border-b border-border/60 bg-background/85 backdrop-blur-xl"
-          : "border-b border-transparent bg-background/60 backdrop-blur-md",
+          ? "border-b border-border/60 bg-background/92 shadow-sm backdrop-blur-xl"
+          : "border-b border-transparent bg-background/82 backdrop-blur-lg",
       )}
     >
-      <div className="container-page flex h-16 items-center justify-between gap-4">
-        <Logo />
+      <div className="container-page flex h-[4.5rem] items-center justify-between gap-5">
+        <Logo className="shrink-0" />
 
-        <nav className="hidden items-center gap-1 lg:flex" aria-label="Primary">
+        <nav className="hidden flex-1 items-center justify-center gap-1 xl:flex" aria-label="Primary">
           {links.map((l) => (
             <Link
               key={l.to}
               to={l.to}
-              activeOptions={{ exact: l.to === "/" }}
-              className="rounded-full px-3.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground data-[status=active]:bg-primary/8 data-[status=active]:text-primary"
+              className="rounded-full px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground data-[status=active]:bg-primary/8 data-[status=active]:text-primary"
             >
               {l.label}
             </Link>
           ))}
         </nav>
 
-        <div className="flex items-center gap-1.5">
-          <div className="hidden sm:flex sm:items-center sm:gap-1">
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="hidden items-center gap-1 md:flex">
             <LanguageSelector />
             <ThemeToggle />
           </div>
-          <Button asChild size="sm" className="hidden rounded-full px-5 shadow-[var(--shadow-elegant)] md:inline-flex">
+          <Button asChild size="sm" className="hidden rounded-full px-5 lg:inline-flex">
             <Link to="/apply">{t("nav.apply")}</Link>
           </Button>
           <Button
-            variant="ghost" size="icon"
-            className="lg:hidden"
+            variant="ghost"
+            size="icon"
+            className="xl:hidden"
             onClick={() => setOpen((o) => !o)}
             aria-label="Menu"
             aria-expanded={open}
@@ -81,23 +76,22 @@ export function Header() {
       </div>
 
       {open && (
-        <div className="border-t border-border/60 bg-background lg:hidden">
+        <div className="border-t border-border/60 bg-background xl:hidden">
           <div className="container-page flex flex-col gap-1 py-4">
             {links.map((l) => (
               <Link
                 key={l.to}
                 to={l.to}
-                activeOptions={{ exact: l.to === "/" }}
                 className="rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground data-[status=active]:bg-primary/8 data-[status=active]:text-primary"
               >
                 {l.label}
               </Link>
             ))}
-            <div className="mt-2 flex items-center gap-2 border-t border-border pt-3">
+            <div className="mt-2 flex items-center gap-2 border-t border-border pt-3 md:hidden">
               <LanguageSelector />
               <ThemeToggle />
             </div>
-            <Button asChild className="mt-3 rounded-full">
+            <Button asChild className="mt-3 rounded-full lg:hidden">
               <Link to="/apply">{t("nav.apply")}</Link>
             </Button>
           </div>
