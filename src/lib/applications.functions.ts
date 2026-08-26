@@ -84,10 +84,7 @@ async function removeUploadedObjects(client: Awaited<ReturnType<typeof serverSup
   if (docs?.length) {
     await client.storage.from("application-documents").remove(docs.map((file) => `${applicationId}/${file.name}`));
   }
-  await client.storage.from("contracts").remove([
-    `${applicationId}/contract-draft.pdf`,
-    `${applicationId}/contract-narrative.pdf`,
-  ]);
+  await client.storage.from("contracts").remove([`${applicationId}/contract-draft.pdf`]);
 }
 
 export const submitApplication = createServerFn({ method: "POST" })
@@ -190,12 +187,18 @@ export const submitApplication = createServerFn({ method: "POST" })
           contentType: "application/pdf",
           upsert: true,
         }),
-        client.storage.from("contracts").upload(narrativePath, narrativePdf, {
+        client.storage.from("application-documents").upload(narrativePath, narrativePdf, {
           contentType: "application/pdf",
           upsert: true,
         }),
       ]);
       if (structuredError || narrativeError) throw new Error("contract_upload_failed");
+
+      documentMeta.push({
+        key: "contract_narrative",
+        filename: "Projet de contrat — version narrative.pdf",
+        path: narrativePath,
+      });
 
       const { error: updateError } = await client
         .from("applications")
