@@ -13,8 +13,10 @@ Interdictions strictes :
 - ne demande jamais et n'invente jamais d'IBAN, de SWIFT, de documents d'identité ou de notes internes
 - si le contexte ne contient pas une donnée, dis que tu ne l'as pas
 - ne présente jamais une demande comme déjà acceptée
+- n'aide jamais à contourner la vérification référence + e-mail du suivi
 
 Le test d'éligibilité oriente seulement. Le projet de contrat est soumis à validation du dossier.
+La référence VIR est affichée après l'enregistrement de la demande et doit être conservée avec l'adresse e-mail utilisée.
 Réponds dans la langue de l'utilisateur, de façon courte et claire.`;
 
 const contextSchema = z
@@ -42,31 +44,42 @@ function localReply(message: string, ctx: z.infer<typeof contextSchema>): string
   if (containsSensitiveBankData(message)) {
     return "Je ne peux pas traiter ni transmettre une coordonnée bancaire. Saisissez ces informations uniquement dans l'étape sécurisée « Coordonnées bancaires » du formulaire.";
   }
+
   const missing = ctx.missingFields ?? [];
   if (missing.length) {
     return `Il vous reste à renseigner : ${missing.join(", ")} avant de continuer. Je ne peux pas valider un prêt à votre place ; je peux seulement vous indiquer les champs encore vides.`;
   }
+
   if (ctx.page === "tracking" && ctx.status) {
     const extra = ctx.missing_public_requirements
       ? ` Point d'attention communiqué : ${ctx.missing_public_requirements}`
       : " Aucun document supplémentaire n'est indiqué pour le moment.";
     const msgs = ctx.public_messages?.length ? ` Messages de l'équipe : ${ctx.public_messages.join(" · ")}` : "";
-    return `Votre dossier${ctx.reference ? ` ${ctx.reference}` : ""} est actuellement au statut « ${ctx.status} ».${extra}${msgs} L'équipe étudiera le dossier ; je ne peux ni l'accepter ni le refuser.`;
+    return `Votre dossier${ctx.reference ? ` ${ctx.reference}` : ""} est actuellement au statut « ${ctx.status} ».${extra}${msgs} La page de suivi affiche uniquement les informations publiques du dossier. Je ne peux ni accepter ni refuser le prêt.`;
   }
+
+  if (ctx.page === "tracking") {
+    return "Pour consulter un dossier, utilisez la référence VIR affichée après votre demande et exactement l'adresse e-mail utilisée lors de l'envoi. Cette double vérification protège l'accès au suivi. Si vous venez de soumettre votre demande, la référence se trouve sur la page de confirmation.";
+  }
+
   if (ctx.page === "eligibility") {
     return "Le test d'éligibilité sert uniquement à orienter. Un résultat favorable ne garantit pas un prêt. Vous pouvez ensuite déposer une demande pour étude humaine.";
   }
+
   if (ctx.page === "application") {
-    return `Vous êtes à l'étape ${ctx.step ?? "en cours"} du formulaire. Complétez les champs demandés, déposez les documents, puis confirmez le projet de contrat. Aucune donnée bancaire ne m'est transmise.`;
+    return `Vous êtes à l'étape ${ctx.step ?? "en cours"} du formulaire. Complétez les champs demandés, déposez les documents, puis consultez et confirmez le projet de contrat. Les frais affichés proviennent de la grille de la plateforme pour le délai choisi. Aucune donnée bancaire ne m'est transmise.`;
   }
+
   if (ctx.page === "confirmation") {
-    return "Conservez votre référence VIR. Sur la page Suivre ma demande, indiquez la référence et l'e-mail utilisé. L'analyse est réalisée par l'équipe ; des justificatifs complémentaires peuvent être demandés.";
+    return `Votre demande est enregistrée${ctx.reference ? ` sous la référence ${ctx.reference}` : ""}. Conservez cette référence : vous aurez besoin de la référence et de l'adresse e-mail utilisée pour suivre le dossier. Vous pouvez copier la référence depuis cette page puis ouvrir « Suivre ma demande ».`;
   }
+
   const lower = message.toLowerCase();
   if (lower.includes("iban") || lower.includes("swift") || lower.includes("bic")) {
     return "Je n'ai pas accès à vos coordonnées bancaires et je ne dois pas les traiter. Saisissez-les uniquement dans l'étape prévue du formulaire.";
   }
-  return "Je peux vous expliquer les étapes (éligibilité, formulaire, documents, projet de contrat, suivi). Je ne peux pas accorder, refuser ou chiffrer un crédit à votre place.";
+
+  return "Je peux vous expliquer les étapes : éligibilité, formulaire, documents, projet de contrat et suivi. Je ne peux pas accorder, refuser ou chiffrer un crédit à votre place.";
 }
 
 export const chatWithAssistant = createServerFn({ method: "POST" })
