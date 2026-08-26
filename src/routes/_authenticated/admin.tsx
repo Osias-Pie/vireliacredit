@@ -3,16 +3,33 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
+  AlertCircle,
+  BarChart3,
   ChevronRight,
+  CircleDollarSign,
+  Clock3,
   Eye,
   EyeOff,
+  FileClock,
   FileText,
   Loader2,
   LogOut,
   RefreshCw,
   Search,
   ShieldAlert,
+  TrendingUp,
 } from "lucide-react";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -98,6 +115,28 @@ type AdminDetail = {
   }>;
 };
 
+const PROGRAM_LABELS: Record<string, string> = {
+  personal: "Prêt personnel",
+  professional: "Prêt professionnel",
+  business: "Prêt entreprise",
+  housing: "Prêt travaux et habitat",
+  studies: "Prêt études",
+  project: "Prêt projet",
+  retired: "Prêt retraité",
+};
+
+const EMPLOYMENT_LABELS: Record<string, string> = {
+  employee: "Salarié",
+  self_employed: "Indépendant",
+  business_owner: "Chef d’entreprise",
+  retired: "Retraité",
+  other: "Autre",
+};
+
+function programLabel(program: string) {
+  return PROGRAM_LABELS[program] ?? program;
+}
+
 function statusLabel(status: string) {
   return STATUS_LABEL_FR[status as ApplicationStatus] ?? status.replaceAll("_", " ");
 }
@@ -108,8 +147,7 @@ function statusTone(status: string) {
 
 function maskIban(value: string) {
   const compact = value.replace(/\s+/g, "");
-  const last = compact.slice(-4);
-  return `**** **** **** ${last || "****"}`;
+  return `**** **** **** ${compact.slice(-4) || "****"}`;
 }
 
 function parseDocuments(value: unknown): Array<{ key?: string; filename?: string; path?: string }> {
@@ -117,6 +155,12 @@ function parseDocuments(value: unknown): Array<{ key?: string; filename?: string
   return value.filter((item): item is { key?: string; filename?: string; path?: string } =>
     Boolean(item && typeof item === "object"),
   );
+}
+
+function startOfDay(value = new Date()) {
+  const d = new Date(value);
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
 function AdminPage() {
@@ -171,19 +215,73 @@ function AdminPage() {
     return (appsQ.data ?? []).filter((a) => {
       if (statusFilter !== "all" && a.status !== statusFilter) return false;
       if (!q) return true;
-      return [a.reference, a.email, a.first_name, a.last_name, a.program, a.country_of_residence ?? a.country]
+      return [
+        a.reference,
+        a.email,
+        a.first_name,
+        a.last_name,
+        programLabel(a.program),
+        a.country_of_residence ?? a.country,
+      ]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q));
     });
   }, [appsQ.data, query, statusFilter]);
 
-  const counts = useMemo(() => {
+  const dashboard = useMemo(() => {
     const list = appsQ.data ?? [];
+    const today = startOfDay().getTime();
+    const verificationStatuses = ["dossier_en_verification", "documents_a_completer", "complement_requis"];
+    const approvedStatuses = ["approuvee", "acceptee", "virement_en_preparation", "terminee"];
+    const priorityStatuses = ["nouvelle_demande", "documents_a_completer", "complement_requis", "contrat_en_preparation", "contrat_a_valider"];
+
+    const totalAmount = list.reduce((sum, app) => sum + (Number(app.amount) || 0), 0);
+    const baseCurrency = list[0]?.currency ?? "EUR";
+    const mixedCurrencies = list.some((a) => a.currency !== baseCurrency);
+
+    const last30 = Array.from({ length: 30 }, (_, index) => {
+      const d = new Date();
+      d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() - (29 - index));
+      const next = new Date(d);
+      next.setDate(next.getDate() + 1);
+      return {
+        key: d.toISOString().slice(0, 10),
+        label: d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }),
+        value: list.filter((a) => {
+          const ts = new Date(a.created_at).getTime();
+          return ts >= d.getTime() && ts < next.getTime();
+        }).length,
+      };
+    });
+
+    const byStatus = APPLICATION_STATUSES
+      .map((status) => ({ name: statusLabel(status), value: list.filter((a) => a.status === status).length }))
+      .filter((item) => item.value > 0);
+
+    const byProgram = Object.entries(
+      list.reduce<Record<string, number>>((acc, app) => {
+        acc[app.program] = (acc[app.program] ?? 0) + 1;
+        return acc;
+      }, {}),
+    ).map(([program, value]) => ({ name: programLabel(program), value }));
+
     return {
       total: list.length,
-      new: list.filter((a) => a.status === "nouvelle_demande").length,
-      analysis: list.filter((a) => ["dossier_en_verification", "en_analyse"].includes(a.status)).length,
-      approved: list.filter((a) => ["approuvee", "acceptee", "terminee"].includes(a.status)).length,
+      today: list.filter((a) => new Date(a.created_at).getTime() >= today).length,
+      verification: list.filter((a) => verificationStatuses.includes(a.status)).length,
+      analysis: list.filter((a) => a.status === "en_analyse").length,
+      documents: list.filter((a) => ["documents_a_completer", "complement_requis"].includes(a.status)).length,
+      approved: list.filter((a) => approvedStatuses.includes(a.status)).length,
+      refused: list.filter((a) => a.status === "refusee").length,
+      totalAmount,
+      baseCurrency,
+      mixedCurrencies,
+      last30,
+      byStatus,
+      byProgram,
+      priority: list.filter((a) => priorityStatuses.includes(a.status)).slice(0, 6),
+      recent: [...list].sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at)).slice(0, 6),
     };
   }, [appsQ.data]);
 
@@ -221,9 +319,7 @@ function AdminPage() {
               <ShieldAlert className="h-6 w-6" />
             </div>
             <h1 className="mt-4 text-xl font-semibold">Accès refusé</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Ce compte ne dispose pas du rôle administrateur.
-            </p>
+            <p className="mt-2 text-sm text-muted-foreground">Ce compte ne dispose pas du rôle administrateur.</p>
             <Button className="mt-6 rounded-full" onClick={signOut} variant="outline">
               <LogOut className="mr-2 h-4 w-4" /> Se déconnecter
             </Button>
@@ -239,10 +335,8 @@ function AdminPage() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-sm font-semibold text-primary">Virelia Crédit</p>
-            <h1 className="mt-1 text-3xl font-bold tracking-tight">Administration des demandes</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Dossiers, documents privés, suivi client et décisions administratives.
-            </p>
+            <h1 className="mt-1 text-3xl font-bold tracking-tight">Tableau de bord</h1>
+            <p className="mt-2 text-sm text-muted-foreground">Pilotage des demandes, priorités, documents privés et suivi client.</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" className="rounded-full" onClick={() => appsQ.refetch()}>
@@ -254,28 +348,106 @@ function AdminPage() {
           </div>
         </div>
 
-        <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard label="Total" value={counts.total} />
-          <StatCard label="Nouvelles" value={counts.new} />
-          <StatCard label="En cours d'étude" value={counts.analysis} />
-          <StatCard label="Approuvées / terminées" value={counts.approved} />
+        <div className="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <MetricCard icon={BarChart3} label="Total des demandes" value={dashboard.total} hint={`${dashboard.today} nouvelle(s) aujourd’hui`} />
+          <MetricCard icon={Clock3} label="À étudier" value={dashboard.verification + dashboard.analysis} hint={`${dashboard.verification} en vérification · ${dashboard.analysis} en analyse`} />
+          <MetricCard icon={FileClock} label="Documents à compléter" value={dashboard.documents} hint="Dossiers nécessitant une action client" />
+          <MetricCard icon={CircleDollarSign} label="Montant total demandé" value={dashboard.mixedCurrencies ? "Multi-devise" : formatAmount(dashboard.totalAmount, dashboard.baseCurrency)} hint={`${dashboard.approved} approuvée(s) · ${dashboard.refused} refusée(s)`} />
         </div>
 
+        <div className="mt-6 grid gap-4 lg:grid-cols-[1.45fr_0.85fr]">
+          <ChartCard title="Demandes sur les 30 derniers jours" subtitle="Volume réel des dossiers créés">
+            <ResponsiveContainer width="100%" height={260}>
+              <AreaChart data={dashboard.last30} margin={{ left: -20, right: 8, top: 10 }}>
+                <defs>
+                  <linearGradient id="vireliaArea" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.28} />
+                    <stop offset="95%" stopColor="var(--primary)" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.25} />
+                <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={4} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
+                <Tooltip />
+                <Area type="monotone" dataKey="value" name="Demandes" stroke="var(--primary)" fill="url(#vireliaArea)" strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </ChartCard>
+
+          <ChartCard title="Répartition par statut" subtitle="Dossiers actuellement présents">
+            {dashboard.byStatus.length ? (
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={dashboard.byStatus} layout="vertical" margin={{ left: 4, right: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.25} />
+                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10 }} />
+                  <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 9 }} />
+                  <Tooltip />
+                  <Bar dataKey="value" name="Dossiers" fill="var(--primary)" radius={[0, 5, 5, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : <EmptyChart />}
+          </ChartCard>
+        </div>
+
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <Panel title="À traiter en priorité" icon={AlertCircle}>
+            {dashboard.priority.length ? dashboard.priority.map((a) => (
+              <button key={a.id} type="button" onClick={() => openDetail(a.id)} className="flex w-full items-center justify-between gap-3 rounded-xl border border-border p-3 text-left transition hover:bg-muted/35">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold">{a.first_name} {a.last_name}</p>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{a.reference} · {programLabel(a.program)}</p>
+                </div>
+                <Badge className={`shrink-0 border-0 ${statusTone(a.status)}`}>{statusLabel(a.status)}</Badge>
+              </button>
+            )) : <p className="text-sm text-muted-foreground">Aucun dossier prioritaire pour le moment.</p>}
+          </Panel>
+
+          <Panel title="Activité récente" icon={TrendingUp}>
+            {dashboard.recent.length ? dashboard.recent.map((a) => (
+              <div key={a.id} className="flex items-center justify-between gap-3 border-b border-border/70 py-3 last:border-0">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">Nouvelle demande · {a.first_name} {a.last_name}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{new Date(a.created_at).toLocaleString("fr-FR")}</p>
+                </div>
+                <button type="button" className="text-xs font-semibold text-primary" onClick={() => openDetail(a.id)}>Ouvrir</button>
+              </div>
+            )) : <p className="text-sm text-muted-foreground">Aucune activité récente.</p>}
+          </Panel>
+        </div>
+
+        <ChartCard className="mt-4" title="Types de prêts" subtitle="Répartition réelle des solutions demandées">
+          {dashboard.byProgram.length ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={dashboard.byProgram} margin={{ left: 0, right: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.25} />
+                <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
+                <Tooltip />
+                <Bar dataKey="value" name="Demandes" fill="var(--primary)" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : <EmptyChart />}
+        </ChartCard>
+
         <section className="surface-card mt-6 overflow-hidden">
-          <div className="flex flex-wrap items-center gap-3 border-b border-border p-4">
-            <div className="relative min-w-64 flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Référence, nom, e-mail, pays, solution…" className="pl-9" />
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
+            <div>
+              <h2 className="font-semibold">Toutes les demandes</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">Recherche, filtre et ouverture rapide des dossiers.</p>
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-64"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les statuts</SelectItem>
-                {APPLICATION_STATUSES.map((status) => (
-                  <SelectItem key={status} value={status}>{statusLabel(status)}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex min-w-full flex-1 flex-wrap gap-3 lg:min-w-0 lg:max-w-3xl lg:justify-end">
+              <div className="relative min-w-64 flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Référence, nom, e-mail, pays, solution…" className="pl-9" />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-64"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous les statuts</SelectItem>
+                  {APPLICATION_STATUSES.map((status) => <SelectItem key={status} value={status}>{statusLabel(status)}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -296,7 +468,7 @@ function AdminPage() {
                   <tr key={a.id} className="hover:bg-muted/25">
                     <td className="px-4 py-3 font-mono text-xs">{a.reference}</td>
                     <td className="px-4 py-3"><p className="font-medium">{a.first_name} {a.last_name}</p><p className="text-xs text-muted-foreground">{a.email}</p></td>
-                    <td className="px-4 py-3">{a.program}</td>
+                    <td className="px-4 py-3">{programLabel(a.program)}</td>
                     <td className="px-4 py-3 whitespace-nowrap">{formatAmount(a.amount, a.currency)}</td>
                     <td className="px-4 py-3"><Badge className={`border-0 ${statusTone(a.status)}`}>{statusLabel(a.status)}</Badge></td>
                     <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">{new Date(a.created_at).toLocaleDateString("fr-FR")}</td>
@@ -331,7 +503,7 @@ function AdminPage() {
                 </Section>
 
                 <Section title="Situation professionnelle">
-                  <Info label="Situation" value={selected.employment_status} />
+                  <Info label="Situation" value={selected.employment_status ? EMPLOYMENT_LABELS[selected.employment_status] ?? selected.employment_status : "—"} />
                   {Object.entries(selected.employment_details ?? {}).map(([k, v]) => <Info key={k} label={k.replaceAll("_", " ")} value={String(v ?? "")} />)}
                   <Info label="Revenu mensuel" value={moneyOrDash(selected.income, selected.currency)} />
                   <Info label="Autres revenus" value={moneyOrDash(selected.other_income, selected.currency)} />
@@ -339,7 +511,7 @@ function AdminPage() {
                 </Section>
 
                 <Section title="Demande">
-                  <Info label="Type de prêt" value={selected.program} /><Info label="Montant" value={formatAmount(selected.amount, selected.currency)} />
+                  <Info label="Type de prêt" value={programLabel(selected.program)} /><Info label="Montant" value={formatAmount(selected.amount, selected.currency)} />
                   <Info label="Durée" value={selected.duration_months ? `${selected.duration_months} mois` : "—"} />
                   <Info label="Délai demandé" value={selected.processing_speed} /><Info label="Frais de traitement" value={moneyOrDash(selected.processing_fee, selected.currency)} />
                   <div className="sm:col-span-2"><Info label="Objet du prêt" value={selected.purpose} /></div>
@@ -421,16 +593,36 @@ function CenteredLoader() {
   return <PageLayout><div className="container-page py-24"><Loader2 className="mx-auto h-6 w-6 animate-spin" /></div></PageLayout>;
 }
 
+function MetricCard({ icon: Icon, label, value, hint }: { icon: typeof BarChart3; label: string; value: ReactNode; hint: string }) {
+  return (
+    <div className="surface-card p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div><p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</p><p className="mt-2 text-3xl font-bold tracking-tight text-foreground">{value}</p></div>
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><Icon className="h-5 w-5" /></span>
+      </div>
+      <p className="mt-3 text-xs text-muted-foreground">{hint}</p>
+    </div>
+  );
+}
+
+function ChartCard({ title, subtitle, children, className = "" }: { title: string; subtitle: string; children: ReactNode; className?: string }) {
+  return <section className={`surface-card p-5 ${className}`}><div className="mb-5"><h2 className="font-semibold">{title}</h2><p className="mt-1 text-xs text-muted-foreground">{subtitle}</p></div>{children}</section>;
+}
+
+function Panel({ title, icon: Icon, children }: { title: string; icon: typeof AlertCircle; children: ReactNode }) {
+  return <section className="surface-card p-5"><div className="mb-4 flex items-center gap-2"><Icon className="h-4 w-4 text-primary" /><h2 className="font-semibold">{title}</h2></div><div className="space-y-2">{children}</div></section>;
+}
+
+function EmptyChart() {
+  return <div className="grid h-[220px] place-items-center rounded-xl border border-dashed border-border text-sm text-muted-foreground">Aucune donnée à afficher.</div>;
+}
+
 function Section({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
   return <section className="rounded-2xl border border-border bg-card p-5"><div className="mb-4 flex items-center justify-between gap-3"><h2 className="font-semibold">{title}</h2>{action}</div><div className="grid gap-3 sm:grid-cols-2">{children}</div></section>;
 }
 
 function Info({ label, value }: { label: string; value: unknown }) {
   return <div><p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p><p className="mt-1 break-words text-sm">{value == null || value === "" ? "—" : String(value)}</p></div>;
-}
-
-function StatCard({ label, value }: { label: string; value: number }) {
-  return <div className="surface-card p-5"><p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</p><p className="mt-2 text-3xl font-bold text-primary">{value}</p></div>;
 }
 
 function formatAmount(amount: number, currency: string) {
