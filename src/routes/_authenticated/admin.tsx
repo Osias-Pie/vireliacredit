@@ -1,24 +1,23 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
+  ChevronRight,
+  Eye,
+  EyeOff,
+  FileText,
+  Loader2,
   LogOut,
   RefreshCw,
   Search,
   ShieldAlert,
-  Trash2,
-  Loader2,
-  ChevronRight,
-  Mail,
-  Phone,
-  MapPin,
 } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -29,92 +28,109 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import {
   APPLICATION_STATUSES,
-  deleteApplication,
+  createAdminSignedUrl,
+  getApplicationAdminDetail,
   getCurrentAdmin,
   listApplications,
   updateApplicationStatus,
   type ApplicationStatus,
 } from "@/lib/admin.functions";
+import { STATUS_LABEL_FR, STATUS_TONE } from "@/lib/status";
 
-export const Route = createFileRoute("/_authenticated/admin")({
-  component: AdminPage,
-});
+export const Route = createFileRoute("/_authenticated/admin")({ component: AdminPage });
 
-const STATUS_LABEL: Record<ApplicationStatus, string> = {
-  nouvelle_demande: "Nouvelle demande",
-  en_analyse: "En analyse",
-  complement_requis: "Complément requis",
-  acceptee: "Acceptée",
-  refusee: "Refusée",
-  archivee: "Archivée",
-};
+type JsonRecord = Record<string, unknown>;
 
-const STATUS_TONE: Record<ApplicationStatus, string> = {
-  nouvelle_demande: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-  en_analyse: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  complement_requis: "bg-orange-500/10 text-orange-600 dark:text-orange-400",
-  acceptee: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  refusee: "bg-red-500/10 text-red-600 dark:text-red-400",
-  archivee: "bg-muted text-muted-foreground",
-};
-
-interface Application {
+type Application = {
   id: string;
   reference: string;
-  status: ApplicationStatus;
-  last_name: string;
+  status: string;
   first_name: string;
+  last_name: string;
   email: string;
   phone: string;
   country: string;
-  city: string;
+  country_of_residence?: string | null;
+  nationality?: string | null;
   address: string;
-  profession: string;
-  company: string | null;
+  birth_date: string;
+  employment_status?: string | null;
+  employment_details?: JsonRecord | null;
+  income?: number | null;
+  other_income?: number | null;
+  monthly_charges?: number | null;
   program: string;
   amount: number;
   currency: string;
-  description: string;
-  goals: string;
-  admin_note: string | null;
+  duration_months?: number | null;
+  purpose?: string | null;
+  processing_speed?: string | null;
+  processing_fee?: number | null;
+  documents?: unknown;
+  contract_path?: string | null;
+  admin_note?: string | null;
+  public_message?: string | null;
+  missing_public_requirements?: string | null;
   created_at: string;
-  whatsapp: string | null;
-  language: string | null;
-  gender: string;
-  birth_date: string;
-  income: number | null;
+};
+
+type AdminDetail = {
+  application: Application;
+  bank: {
+    bank_name: string;
+    account_holder_name: string;
+    iban_account_number: string;
+    swift_bic: string | null;
+  } | null;
+  history: Array<{
+    id: string;
+    status: string;
+    public_message: string | null;
+    created_at: string;
+    created_by: string | null;
+  }>;
+};
+
+function statusLabel(status: string) {
+  return STATUS_LABEL_FR[status as ApplicationStatus] ?? status.replaceAll("_", " ");
+}
+
+function statusTone(status: string) {
+  return STATUS_TONE[status as ApplicationStatus] ?? "bg-muted text-muted-foreground";
+}
+
+function maskIban(value: string) {
+  const compact = value.replace(/\s+/g, "");
+  const last = compact.slice(-4);
+  return `**** **** **** ${last || "****"}`;
+}
+
+function parseDocuments(value: unknown): Array<{ key?: string; filename?: string; path?: string }> {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is { key?: string; filename?: string; path?: string } =>
+    Boolean(item && typeof item === "object"),
+  );
 }
 
 function AdminPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<ApplicationStatus | "all">("all");
-  const [selected, setSelected] = useState<Application | null>(null);
-  const [toDelete, setToDelete] = useState<Application | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showBank, setShowBank] = useState(false);
+  const [publicMessage, setPublicMessage] = useState("");
+  const [internalNote, setInternalNote] = useState("");
+  const [missingRequirements, setMissingRequirements] = useState("");
 
-  const meQ = useQuery({
-    queryKey: ["admin", "me"],
-    queryFn: () => getCurrentAdmin(),
-  });
-
+  const meQ = useQuery({ queryKey: ["admin", "me"], queryFn: () => getCurrentAdmin() });
   const isAdmin = meQ.data?.isAdmin ?? false;
 
   const appsQ = useQuery({
@@ -124,41 +140,40 @@ function AdminPage() {
     refetchInterval: 30_000,
   });
 
-  const updateM = useMutation({
-    mutationFn: (v: { id: string; status: ApplicationStatus; admin_note?: string }) =>
-      updateApplicationStatus({ data: v }),
-    onSuccess: () => {
-      toast.success("Demande mise à jour");
-      qc.invalidateQueries({ queryKey: ["admin", "applications"] });
-    },
-    onError: (e: any) => toast.error(e?.message ?? "Erreur"),
+  const detailQ = useQuery({
+    queryKey: ["admin", "application", selectedId],
+    queryFn: () => getApplicationAdminDetail({ data: { id: selectedId! } }) as Promise<AdminDetail>,
+    enabled: isAdmin && !!selectedId,
   });
 
-  const deleteM = useMutation({
-    mutationFn: (id: string) => deleteApplication({ data: { id } }),
-    onSuccess: () => {
-      toast.success("Demande supprimée");
-      setToDelete(null);
-      setSelected(null);
-      qc.invalidateQueries({ queryKey: ["admin", "applications"] });
+  const selected = detailQ.data?.application ?? null;
+
+  const updateM = useMutation({
+    mutationFn: (data: {
+      id: string;
+      status: ApplicationStatus;
+      admin_note?: string;
+      public_message?: string;
+      missing_public_requirements?: string;
+    }) => updateApplicationStatus({ data }),
+    onSuccess: async () => {
+      toast.success("Dossier mis à jour");
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["admin", "applications"] }),
+        qc.invalidateQueries({ queryKey: ["admin", "application", selectedId] }),
+      ]);
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erreur"),
+    onError: () => toast.error("Impossible de mettre à jour le dossier"),
   });
 
   const filtered = useMemo(() => {
-    const list = appsQ.data ?? [];
     const q = query.trim().toLowerCase();
-    return list.filter((a) => {
+    return (appsQ.data ?? []).filter((a) => {
       if (statusFilter !== "all" && a.status !== statusFilter) return false;
       if (!q) return true;
-      return (
-        a.reference.toLowerCase().includes(q) ||
-        a.email.toLowerCase().includes(q) ||
-        a.last_name.toLowerCase().includes(q) ||
-        a.first_name.toLowerCase().includes(q) ||
-        a.program.toLowerCase().includes(q) ||
-        a.country.toLowerCase().includes(q)
-      );
+      return [a.reference, a.email, a.first_name, a.last_name, a.program, a.country_of_residence ?? a.country]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(q));
     });
   }, [appsQ.data, query, statusFilter]);
 
@@ -166,9 +181,9 @@ function AdminPage() {
     const list = appsQ.data ?? [];
     return {
       total: list.length,
-      nouvelle: list.filter((a) => a.status === "nouvelle_demande").length,
-      analyse: list.filter((a) => a.status === "en_analyse").length,
-      acceptee: list.filter((a) => a.status === "acceptee").length,
+      new: list.filter((a) => a.status === "nouvelle_demande").length,
+      analysis: list.filter((a) => ["dossier_en_verification", "en_analyse"].includes(a.status)).length,
+      approved: list.filter((a) => ["approuvee", "acceptee", "terminee"].includes(a.status)).length,
     };
   }, [appsQ.data]);
 
@@ -178,28 +193,36 @@ function AdminPage() {
     navigate({ to: "/auth" });
   };
 
-  if (meQ.isPending) {
-    return (
-      <PageLayout>
-        <div className="container-page py-24 text-center">
-          <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
-      </PageLayout>
-    );
-  }
+  const openDetail = (id: string) => {
+    setSelectedId(id);
+    setShowBank(false);
+    setPublicMessage("");
+    setInternalNote("");
+    setMissingRequirements("");
+  };
+
+  const openPrivateFile = async (bucket: "application-documents" | "contracts", path: string) => {
+    try {
+      const { url } = await createAdminSignedUrl({ data: { bucket, path } });
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch {
+      toast.error("Impossible d'ouvrir ce fichier");
+    }
+  };
+
+  if (meQ.isPending) return <CenteredLoader />;
 
   if (!isAdmin) {
     return (
       <PageLayout>
         <div className="container-page py-20">
-          <div className="mx-auto max-w-lg surface-card p-8 text-center">
+          <div className="surface-card mx-auto max-w-lg p-8 text-center">
             <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-destructive/10 text-destructive">
               <ShieldAlert className="h-6 w-6" />
             </div>
             <h1 className="mt-4 text-xl font-semibold">Accès refusé</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Votre compte est connecté mais ne dispose pas du rôle administrateur. Contactez un
-              super-administrateur pour obtenir les droits d'accès au dashboard.
+              Ce compte ne dispose pas du rôle administrateur.
             </p>
             <Button className="mt-6 rounded-full" onClick={signOut} variant="outline">
               <LogOut className="mr-2 h-4 w-4" /> Se déconnecter
@@ -212,24 +235,18 @@ function AdminPage() {
 
   return (
     <PageLayout>
-      <div className="container-page py-10">
+      <main className="container-page py-10">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Administration</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Gestion des demandes reçues via le formulaire public.
+            <p className="text-sm font-semibold text-primary">Virelia Crédit</p>
+            <h1 className="mt-1 text-3xl font-bold tracking-tight">Administration des demandes</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Dossiers, documents privés, suivi client et décisions administratives.
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-full"
-              onClick={() => appsQ.refetch()}
-              disabled={appsQ.isFetching}
-            >
-              <RefreshCw className={`mr-2 h-4 w-4 ${appsQ.isFetching ? "animate-spin" : ""}`} />
-              Actualiser
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="rounded-full" onClick={() => appsQ.refetch()}>
+              <RefreshCw className={`mr-2 h-4 w-4 ${appsQ.isFetching ? "animate-spin" : ""}`} /> Actualiser
             </Button>
             <Button variant="ghost" size="sm" className="rounded-full" onClick={signOut}>
               <LogOut className="mr-2 h-4 w-4" /> Déconnexion
@@ -237,248 +254,190 @@ function AdminPage() {
           </div>
         </div>
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard label="Total" value={counts.total} />
-          <StatCard label="Nouvelles" value={counts.nouvelle} tone="blue" />
-          <StatCard label="En analyse" value={counts.analyse} tone="amber" />
-          <StatCard label="Acceptées" value={counts.acceptee} tone="emerald" />
+          <StatCard label="Nouvelles" value={counts.new} />
+          <StatCard label="En cours d'étude" value={counts.analysis} />
+          <StatCard label="Approuvées / terminées" value={counts.approved} />
         </div>
 
-        <div className="mt-6 surface-card overflow-hidden">
+        <section className="surface-card mt-6 overflow-hidden">
           <div className="flex flex-wrap items-center gap-3 border-b border-border p-4">
-            <div className="relative flex-1 min-w-64">
+            <div className="relative min-w-64 flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Rechercher (référence, nom, email, pays…)"
-                className="pl-9"
-              />
+              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Référence, nom, e-mail, pays, solution…" className="pl-9" />
             </div>
-            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
-              <SelectTrigger className="w-56">
-                <SelectValue placeholder="Statut" />
-              </SelectTrigger>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-64"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous les statuts</SelectItem>
-                {APPLICATION_STATUSES.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {STATUS_LABEL[s]}
-                  </SelectItem>
+                {APPLICATION_STATUSES.map((status) => (
+                  <SelectItem key={status} value={status}>{statusLabel(status)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[860px] text-sm">
               <thead className="bg-muted/40 text-left text-xs uppercase tracking-wider text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-3">Référence</th>
-                  <th className="px-4 py-3">Demandeur</th>
-                  <th className="px-4 py-3">Programme</th>
-                  <th className="px-4 py-3">Montant</th>
-                  <th className="px-4 py-3">Statut</th>
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
+                  <th className="px-4 py-3">Référence</th><th className="px-4 py-3">Demandeur</th>
+                  <th className="px-4 py-3">Solution</th><th className="px-4 py-3">Montant</th>
+                  <th className="px-4 py-3">Statut</th><th className="px-4 py-3">Date</th><th className="px-4 py-3" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {appsQ.isPending ? (
-                  <tr>
-                    <td colSpan={7} className="py-12 text-center text-muted-foreground">
-                      <Loader2 className="mx-auto h-5 w-5 animate-spin" />
-                    </td>
-                  </tr>
+                  <tr><td colSpan={7} className="py-12 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></td></tr>
                 ) : filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="py-12 text-center text-muted-foreground">
-                      Aucune demande trouvée.
-                    </td>
+                  <tr><td colSpan={7} className="py-12 text-center text-muted-foreground">Aucune demande trouvée.</td></tr>
+                ) : filtered.map((a) => (
+                  <tr key={a.id} className="hover:bg-muted/25">
+                    <td className="px-4 py-3 font-mono text-xs">{a.reference}</td>
+                    <td className="px-4 py-3"><p className="font-medium">{a.first_name} {a.last_name}</p><p className="text-xs text-muted-foreground">{a.email}</p></td>
+                    <td className="px-4 py-3">{a.program}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">{formatAmount(a.amount, a.currency)}</td>
+                    <td className="px-4 py-3"><Badge className={`border-0 ${statusTone(a.status)}`}>{statusLabel(a.status)}</Badge></td>
+                    <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">{new Date(a.created_at).toLocaleDateString("fr-FR")}</td>
+                    <td className="px-4 py-3 text-right"><Button variant="ghost" size="sm" onClick={() => openDetail(a.id)}>Ouvrir <ChevronRight className="ml-1 h-4 w-4" /></Button></td>
                   </tr>
-                ) : (
-                  filtered.map((a) => (
-                    <tr key={a.id} className="hover:bg-muted/30">
-                      <td className="px-4 py-3 font-mono text-xs">{a.reference}</td>
-                      <td className="px-4 py-3">
-                        <div className="font-medium">
-                          {a.first_name} {a.last_name}
-                        </div>
-                        <div className="text-xs text-muted-foreground">{a.email}</div>
-                      </td>
-                      <td className="px-4 py-3">{a.program}</td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        {new Intl.NumberFormat("fr-FR").format(a.amount)} {a.currency}
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge className={`rounded-full border-0 ${STATUS_TONE[a.status]}`}>
-                          {STATUS_LABEL[a.status]}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
-                        {new Date(a.created_at).toLocaleDateString("fr-FR")}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <Button size="sm" variant="ghost" onClick={() => setSelected(a)}>
-                          Détails <ChevronRight className="ml-1 h-3.5 w-3.5" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))
-                )}
+                ))}
               </tbody>
             </table>
           </div>
-        </div>
-      </div>
+        </section>
+      </main>
 
-      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
-        <DialogContent className="max-w-2xl">
-          {selected && (
+      <Dialog open={!!selectedId} onOpenChange={(open) => !open && setSelectedId(null)}>
+        <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
+          {detailQ.isPending || !selected ? (
+            <div className="py-16"><Loader2 className="mx-auto h-6 w-6 animate-spin" /></div>
+          ) : (
             <>
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-3">
-                  <span>
-                    {selected.first_name} {selected.last_name}
-                  </span>
-                  <Badge className={`rounded-full border-0 ${STATUS_TONE[selected.status]}`}>
-                    {STATUS_LABEL[selected.status]}
-                  </Badge>
+                <DialogTitle className="flex flex-wrap items-center gap-3 text-xl">
+                  {selected.first_name} {selected.last_name}
+                  <Badge className={`border-0 ${statusTone(selected.status)}`}>{statusLabel(selected.status)}</Badge>
                 </DialogTitle>
-                <DialogDescription className="font-mono text-xs">
-                  {selected.reference}
-                </DialogDescription>
+                <DialogDescription className="font-mono">{selected.reference}</DialogDescription>
               </DialogHeader>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <InfoLine icon={<Mail className="h-4 w-4" />} label="Email" value={selected.email} />
-                <InfoLine icon={<Phone className="h-4 w-4" />} label="Téléphone" value={selected.phone} />
-                <InfoLine icon={<MapPin className="h-4 w-4" />} label="Localisation" value={`${selected.city}, ${selected.country}`} />
-                <InfoLine label="Profession" value={selected.profession + (selected.company ? ` — ${selected.company}` : "")} />
-                <InfoLine label="Programme" value={selected.program} />
-                <InfoLine label="Montant" value={`${new Intl.NumberFormat("fr-FR").format(selected.amount)} ${selected.currency}`} />
+              <div className="grid gap-5 lg:grid-cols-2">
+                <Section title="Informations personnelles">
+                  <Info label="E-mail" value={selected.email} /><Info label="Téléphone" value={selected.phone} />
+                  <Info label="Date de naissance" value={selected.birth_date} /><Info label="Nationalité" value={selected.nationality} />
+                  <Info label="Pays de résidence" value={selected.country_of_residence ?? selected.country} /><Info label="Adresse" value={selected.address} />
+                </Section>
+
+                <Section title="Situation professionnelle">
+                  <Info label="Situation" value={selected.employment_status} />
+                  {Object.entries(selected.employment_details ?? {}).map(([k, v]) => <Info key={k} label={k.replaceAll("_", " ")} value={String(v ?? "")} />)}
+                  <Info label="Revenu mensuel" value={moneyOrDash(selected.income, selected.currency)} />
+                  <Info label="Autres revenus" value={moneyOrDash(selected.other_income, selected.currency)} />
+                  <Info label="Charges mensuelles" value={moneyOrDash(selected.monthly_charges, selected.currency)} />
+                </Section>
+
+                <Section title="Demande">
+                  <Info label="Type de prêt" value={selected.program} /><Info label="Montant" value={formatAmount(selected.amount, selected.currency)} />
+                  <Info label="Durée" value={selected.duration_months ? `${selected.duration_months} mois` : "—"} />
+                  <Info label="Délai demandé" value={selected.processing_speed} /><Info label="Frais de traitement" value={moneyOrDash(selected.processing_fee, selected.currency)} />
+                  <div className="sm:col-span-2"><Info label="Objet du prêt" value={selected.purpose} /></div>
+                </Section>
+
+                <Section title="Coordonnées bancaires" action={
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setShowBank((v) => !v)}>
+                    {showBank ? <EyeOff className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}{showBank ? "Masquer" : "Afficher"}
+                  </Button>
+                }>
+                  {detailQ.data?.bank ? <>
+                    <Info label="Banque" value={detailQ.data.bank.bank_name} /><Info label="Titulaire" value={detailQ.data.bank.account_holder_name} />
+                    <Info label="IBAN / compte" value={showBank ? detailQ.data.bank.iban_account_number : maskIban(detailQ.data.bank.iban_account_number)} />
+                    <Info label="BIC / SWIFT" value={showBank ? detailQ.data.bank.swift_bic : detailQ.data.bank.swift_bic ? "••••••••" : "—"} />
+                  </> : <p className="text-sm text-muted-foreground">Aucune coordonnée bancaire enregistrée.</p>}
+                </Section>
               </div>
 
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Description</div>
-                <p className="mt-1 whitespace-pre-wrap rounded-lg bg-muted/40 p-3 text-sm">{selected.description}</p>
-              </div>
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Objectifs</div>
-                <p className="mt-1 whitespace-pre-wrap rounded-lg bg-muted/40 p-3 text-sm">{selected.goals}</p>
-              </div>
+              <Section title="Documents et projet de contrat">
+                {parseDocuments(selected.documents).map((doc) => doc.path ? (
+                  <Button key={doc.path} variant="outline" size="sm" onClick={() => void openPrivateFile("application-documents", doc.path!)}>
+                    <FileText className="mr-2 h-4 w-4" />{doc.filename || doc.key || "Document"}
+                  </Button>
+                ) : null)}
+                {selected.contract_path && (
+                  <Button variant="outline" size="sm" onClick={() => void openPrivateFile("contracts", selected.contract_path!)}>
+                    <FileText className="mr-2 h-4 w-4" />Projet de contrat
+                  </Button>
+                )}
+                {!selected.contract_path && parseDocuments(selected.documents).length === 0 && <p className="text-sm text-muted-foreground">Aucun fichier disponible.</p>}
+              </Section>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Statut
-                  </label>
-                  <Select
-                    value={selected.status}
-                    onValueChange={(v) =>
-                      updateM.mutate({ id: selected.id, status: v as ApplicationStatus })
-                    }
-                  >
-                    <SelectTrigger className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {APPLICATION_STATUSES.map((s) => (
-                        <SelectItem key={s} value={s}>
-                          {STATUS_LABEL[s]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
+              <div className="grid gap-5 lg:grid-cols-2">
+                <Section title="Pilotage du dossier">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Statut</label>
+                  <Select value={selected.status} onValueChange={(v) => updateM.mutate({ id: selected.id, status: v as ApplicationStatus })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{APPLICATION_STATUSES.map((s) => <SelectItem key={s} value={s}>{statusLabel(s)}</SelectItem>)}</SelectContent>
                   </Select>
-                </div>
-              </div>
 
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Note administrateur
-                </label>
-                <Textarea
-                  defaultValue={selected.admin_note ?? ""}
-                  rows={3}
-                  className="mt-1"
-                  onBlur={(e) => {
-                    if ((e.target.value ?? "") !== (selected.admin_note ?? "")) {
-                      updateM.mutate({
-                        id: selected.id,
-                        status: selected.status,
-                        admin_note: e.target.value,
-                      });
-                    }
-                  }}
-                />
-              </div>
+                  <label className="mt-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Message public au client</label>
+                  <Textarea value={publicMessage} onChange={(e) => setPublicMessage(e.target.value)} placeholder={selected.public_message ?? "Message visible dans le suivi client"} rows={3} />
 
-              <div className="flex items-center justify-between border-t border-border pt-4">
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="rounded-full"
-                  onClick={() => setToDelete(selected)}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" /> Supprimer
-                </Button>
-                <Button variant="outline" size="sm" className="rounded-full" onClick={() => setSelected(null)}>
-                  Fermer
-                </Button>
+                  <label className="mt-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Éléments publics à compléter</label>
+                  <Textarea value={missingRequirements} onChange={(e) => setMissingRequirements(e.target.value)} placeholder={selected.missing_public_requirements ?? "Informations ou documents à fournir"} rows={2} />
+
+                  <label className="mt-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Note interne</label>
+                  <Textarea value={internalNote} onChange={(e) => setInternalNote(e.target.value)} placeholder={selected.admin_note ?? "Jamais visible côté client"} rows={3} />
+
+                  <Button className="mt-2" disabled={updateM.isPending} onClick={() => updateM.mutate({
+                    id: selected.id,
+                    status: selected.status as ApplicationStatus,
+                    public_message: publicMessage || selected.public_message || "",
+                    missing_public_requirements: missingRequirements || selected.missing_public_requirements || "",
+                    admin_note: internalNote || selected.admin_note || "",
+                  })}>Enregistrer les messages</Button>
+                </Section>
+
+                <Section title="Historique d'avancement">
+                  <div className="space-y-3 sm:col-span-2">
+                    {(detailQ.data?.history ?? []).length === 0 ? <p className="text-sm text-muted-foreground">Aucun historique.</p> : detailQ.data!.history.map((item) => (
+                      <div key={item.id} className="rounded-xl border border-border p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2"><Badge variant="outline">{statusLabel(item.status)}</Badge><span className="text-xs text-muted-foreground">{new Date(item.created_at).toLocaleString("fr-FR")}</span></div>
+                        {item.public_message && <p className="mt-2 text-sm">{item.public_message}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </Section>
               </div>
             </>
           )}
         </DialogContent>
       </Dialog>
-
-      <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer la demande ?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Cette action est irréversible. La demande {toDelete?.reference} sera définitivement supprimée.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => toDelete && deleteM.mutate(toDelete.id)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Supprimer
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </PageLayout>
   );
 }
 
-function StatCard({ label, value, tone }: { label: string; value: number; tone?: "blue" | "amber" | "emerald" }) {
-  const toneCls =
-    tone === "blue"
-      ? "text-blue-600 dark:text-blue-400"
-      : tone === "amber"
-      ? "text-amber-600 dark:text-amber-400"
-      : tone === "emerald"
-      ? "text-emerald-600 dark:text-emerald-400"
-      : "text-foreground";
-  return (
-    <div className="surface-card p-5">
-      <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className={`mt-2 text-3xl font-bold ${toneCls}`}>{value}</div>
-    </div>
-  );
+function CenteredLoader() {
+  return <PageLayout><div className="container-page py-24"><Loader2 className="mx-auto h-6 w-6 animate-spin" /></div></PageLayout>;
 }
 
-function InfoLine({ icon, label, value }: { icon?: React.ReactNode; label: string; value: string }) {
-  return (
-    <div>
-      <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        {icon}
-        {label}
-      </div>
-      <div className="mt-1 text-sm">{value}</div>
-    </div>
-  );
+function Section({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
+  return <section className="rounded-2xl border border-border bg-card p-5"><div className="mb-4 flex items-center justify-between gap-3"><h2 className="font-semibold">{title}</h2>{action}</div><div className="grid gap-3 sm:grid-cols-2">{children}</div></section>;
+}
+
+function Info({ label, value }: { label: string; value: unknown }) {
+  return <div><p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p><p className="mt-1 break-words text-sm">{value == null || value === "" ? "—" : String(value)}</p></div>;
+}
+
+function StatCard({ label, value }: { label: string; value: number }) {
+  return <div className="surface-card p-5"><p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</p><p className="mt-2 text-3xl font-bold text-primary">{value}</p></div>;
+}
+
+function formatAmount(amount: number, currency: string) {
+  try { return new Intl.NumberFormat("fr-FR", { style: "currency", currency, maximumFractionDigits: 0 }).format(amount); }
+  catch { return `${amount} ${currency}`; }
+}
+
+function moneyOrDash(value: number | null | undefined, currency: string) {
+  return value == null ? "—" : formatAmount(value, currency);
 }
