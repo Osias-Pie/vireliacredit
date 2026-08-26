@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { Check, Loader2, ShieldCheck } from "lucide-react";
@@ -17,6 +17,8 @@ import { LOAN_PRODUCTS } from "@/lib/data/programs";
 import { useI18n } from "@/lib/i18n/context";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { submitApplication } from "@/lib/applications.functions";
+import { generateLoanContractPdf } from "@/lib/contracts/generate-loan-contract";
+import { useAssistantContext } from "@/components/assistant/VireliaAssistant";
 import {
   DOCUMENTS_BY_STATUS,
   EMPLOYMENT_STATUSES,
@@ -40,6 +42,7 @@ export const Route = createFileRoute("/apply")({
     duration?: number;
     speed?: string;
     currency?: string;
+    status?: string;
   } => ({
     program: typeof s.program === "string" ? s.program : undefined,
     amount: s.amount != null && Number.isFinite(Number(s.amount)) ? Number(s.amount) : undefined,
@@ -47,6 +50,7 @@ export const Route = createFileRoute("/apply")({
       s.duration != null && Number.isFinite(Number(s.duration)) ? Number(s.duration) : undefined,
     speed: typeof s.speed === "string" ? s.speed : undefined,
     currency: typeof s.currency === "string" ? s.currency : undefined,
+    status: typeof s.status === "string" ? s.status : undefined,
   }),
   head: () => ({
     meta: [
@@ -54,23 +58,16 @@ export const Route = createFileRoute("/apply")({
       {
         name: "description",
         content:
-          "Déposez votre demande de prêt remboursable en 4 étapes : informations, situation, prêt souhaité et documents.",
+          "Déposez votre demande de prêt remboursable en 5 étapes, puis confirmez le projet de contrat.",
       },
       { property: "og:title", content: "Demande de prêt — Virelia Crédit" },
-      {
-        property: "og:description",
-        content: "Formulaire de demande de prêt en 4 étapes, ouvert depuis n'importe quel pays.",
-      },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-      { property: "og:url", content: "https://vireliacredit.lovable.app/apply" },
     ],
-    links: [{ rel: "canonical", href: "https://vireliacredit.lovable.app/apply" }],
   }),
   component: ApplyPage,
 });
 
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 5;
 
 interface FormState {
   first_name: string;
@@ -92,11 +89,14 @@ interface FormState {
   duration: string;
   purpose: string;
   speed: ProcessingSpeed;
-  documents: string[];
+  files: Record<string, File | null>;
+  bank_name: string;
+  account_holder_name: string;
+  iban_account_number: string;
+  swift_bic: string;
   accept: boolean;
 }
 
-/** Conditional fields per declared situation — labels come from i18n. */
 const DETAIL_FIELDS: Record<EmploymentStatus, { id: string; label: TranslationKey }[]> = {
   employee: [
     { id: "job", label: "field.job" },
@@ -110,7 +110,7 @@ const DETAIL_FIELDS: Record<EmploymentStatus, { id: string; label: TranslationKe
     { id: "activity_seniority", label: "field.activity_seniority" },
   ],
   business_owner: [
-    { id: "job", label: "field.job" },
+    { id: "job", label: "field.function" },
     { id: "company_name", label: "field.company_name" },
     { id: "seniority", label: "field.seniority" },
   ],
@@ -126,16 +126,33 @@ const INCOME_LABEL: Record<EmploymentStatus, TranslationKey> = {
   other: "field.net_income",
 };
 
+async function fileToBase64(file: File): Promise<string> {
+  const buf = await file.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
 function ApplyPage() {
   const { t, locale } = useI18n();
   const search = useSearch({ from: "/apply" });
   const navigate = useNavigate();
+  const assistant = useAssistantContext();
 
   const slugs = enabledLoanSlugs() as string[];
   const products = LOAN_PRODUCTS.filter((p) => slugs.includes(p.slug));
+  const initialStatus = (EMPLOYMENT_STATUSES as readonly string[]).includes(search.status ?? "")
+    ? (search.status as EmploymentStatus)
+    : "";
 
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [form, setForm] = useState<FormState>({
     first_name: "",
@@ -146,7 +163,7 @@ function ApplyPage() {
     address: "",
     phone: "",
     email: "",
-    employment_status: "",
+    employment_status: initialStatus,
     details: {},
     income: "",
     other_income: "",
@@ -161,7 +178,11 @@ function ApplyPage() {
     speed: (PROCESSING_SPEEDS as readonly string[]).includes(search.speed ?? "")
       ? (search.speed as ProcessingSpeed)
       : "48h",
-    documents: [],
+    files: {},
+    bank_name: "",
+    account_holder_name: "",
+    iban_account_number: "",
+    swift_bic: "",
     accept: false,
   });
 
@@ -178,6 +199,51 @@ function ApplyPage() {
     return p ? t(p.titleKey as TranslationKey) : form.program;
   }, [products, form.program, t]);
 
+  const missingFields = useMemo(() => {
+    const m: string[] = [];
+    if (step === 1) {
+      if (!form.first_name.trim()) m.push("first_name");
+      if (!form.last_name.trim()) m.push("last_name");
+      if (!form.birth_date) m.push("birth_date");
+      if (!form.country.trim()) m.push("country_of_residence");
+      if (!form.nationality.trim()) m.push("nationality");
+      if (!form.address.trim()) m.push("address");
+      if (!form.phone.trim()) m.push("phone");
+      if (!form.email.trim()) m.push("email");
+    }
+    if (step === 2) {
+      if (!form.employment_status) m.push("professionalStatus");
+      if (!form.income.trim()) m.push("monthly_pension_or_income");
+      if (!form.monthly_charges.trim()) m.push("monthly_charges");
+    }
+    if (step === 4) {
+      for (const key of requiredDocs) {
+        if (!form.files[key]) m.push(key);
+      }
+    }
+    if (step === 5) {
+      if (!form.bank_name.trim()) m.push("bank_name");
+      if (!form.account_holder_name.trim()) m.push("account_holder_name");
+      if (!form.iban_account_number.trim()) m.push("iban_account_number");
+    }
+    return m;
+  }, [step, form, requiredDocs]);
+
+  useEffect(() => {
+    assistant?.setContext({
+      page: "application",
+      step,
+      professionalStatus: form.employment_status || undefined,
+      missingFields,
+    });
+  }, [assistant, step, form.employment_status, missingFields]);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
   function validate(current: number): boolean {
     const e: Record<string, string> = {};
     const required = (k: keyof FormState, min = 2) => {
@@ -189,6 +255,7 @@ function ApplyPage() {
       required("last_name");
       required("birth_date", 4);
       required("country");
+      required("nationality");
       required("address", 4);
       required("phone", 6);
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())) e.email = t("form.required");
@@ -196,6 +263,7 @@ function ApplyPage() {
     if (current === 2) {
       if (!form.employment_status) e.employment_status = t("form.required");
       if (!form.income.trim()) e.income = t("form.required");
+      if (!form.monthly_charges.trim()) e.monthly_charges = t("form.required");
     }
     if (current === 3) {
       if (!form.program) e.program = t("form.required");
@@ -204,12 +272,23 @@ function ApplyPage() {
       if (!(d >= durationRange.min && d <= durationRange.max)) e.duration = t("form.required");
       if (form.purpose.trim().length < 10) e.purpose = t("form.required");
     }
-    if (current === 4 && !form.accept) e.accept = t("form.required");
+    if (current === 4) {
+      for (const key of requiredDocs) {
+        if (!form.files[key]) e[key] = t("form.required");
+      }
+    }
+    if (current === 5) {
+      required("bank_name");
+      required("account_holder_name");
+      required("iban_account_number", 6);
+      if (!form.accept) e.accept = t("form.required");
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   }
 
   function next() {
+    if (step === 5) return;
     if (!validate(step)) return;
     setStep((s) => Math.min(TOTAL_STEPS, s + 1));
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
@@ -217,14 +296,63 @@ function ApplyPage() {
 
   function back() {
     setErrors({});
+    setPreviewing(false);
     setStep((s) => Math.max(1, s - 1));
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  async function openPreview() {
+    const e: Record<string, string> = {};
+    if (form.bank_name.trim().length < 2) e.bank_name = t("form.required");
+    if (form.account_holder_name.trim().length < 2) e.account_holder_name = t("form.required");
+    if (form.iban_account_number.trim().length < 6) e.iban_account_number = t("form.required");
+    setErrors(e);
+    if (Object.keys(e).length) return;
+
+    const bytes = await generateLoanContractPdf({
+      firstName: form.first_name,
+      lastName: form.last_name,
+      birthDate: form.birth_date,
+      nationality: form.nationality,
+      address: form.address,
+      phone: form.phone,
+      email: form.email,
+      programLabel: productLabel,
+      purpose: form.purpose,
+      amountLabel: formatMoney(Number(form.amount) || 0, form.currency, locale),
+      currency: form.currency,
+      durationMonths: form.duration,
+      processingSpeedLabel: t(`speed.${form.speed}` as TranslationKey),
+      processingFeeLabel: fee
+        ? `${formatMoney(fee.amount, form.currency, locale)} — ${t("form.fee_status.pending")}`
+        : t("form.fee_status.not_applicable"),
+      bankName: form.bank_name,
+      accountHolderName: form.account_holder_name,
+      ibanAccountNumber: form.iban_account_number,
+      swiftBic: form.swift_bic,
+      confirmationDate: new Date().toISOString().slice(0, 10),
+    });
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    const blob = new Blob([bytes as BlobPart], { type: "application/pdf" });
+    setPreviewUrl(URL.createObjectURL(blob));
+    setPreviewing(true);
+  }
+
   async function onSubmit() {
-    if (!validate(4)) return;
+    if (!validate(5) || !previewing) return;
     setSubmitting(true);
     try {
+      const files = [];
+      for (const key of requiredDocs) {
+        const file = form.files[key];
+        if (!file) continue;
+        files.push({
+          key,
+          filename: file.name,
+          mime: file.type,
+          contentBase64: await fileToBase64(file),
+        });
+      }
       const res = await submitApplication({
         data: {
           first_name: form.first_name.trim(),
@@ -247,13 +375,19 @@ function ApplyPage() {
           purpose: form.purpose.trim(),
           processing_speed: form.speed,
           processing_fee: fee ? fee.amount : null,
-          documents: form.documents,
           language: locale,
+          program_label: productLabel,
+          speed_label: t(`speed.${form.speed}` as TranslationKey),
+          bank_name: form.bank_name.trim(),
+          account_holder_name: form.account_holder_name.trim(),
+          iban_account_number: form.iban_account_number.trim(),
+          swift_bic: form.swift_bic.trim(),
+          files,
+          contract_confirmed: true as const,
         },
       });
       navigate({ to: "/confirmation", search: { ref: res.reference } });
-    } catch (err) {
-      console.error(err);
+    } catch {
       toast.error(t("apply.error.generic"));
     } finally {
       setSubmitting(false);
@@ -270,13 +404,12 @@ function ApplyPage() {
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{t("apply.title")}</h1>
           <p className="mt-3 text-muted-foreground">{t("apply.subtitle")}</p>
 
-          {/* Progress */}
           <div className="mt-8">
             <p className="text-sm font-medium text-primary">
               {t("form.step").replace("{n}", String(step)).replace("{total}", String(TOTAL_STEPS))}
             </p>
             <div className="mt-3 flex gap-2">
-              {[1, 2, 3, 4].map((i) => (
+              {[1, 2, 3, 4, 5].map((i) => (
                 <span
                   key={i}
                   className={`h-1.5 flex-1 rounded-full ${i <= step ? "bg-primary" : "bg-border"}`}
@@ -292,7 +425,6 @@ function ApplyPage() {
             transition={{ duration: 0.25 }}
             className="surface-card mt-8 space-y-6 p-5 sm:p-8"
           >
-            {/* ---------------- STEP 1 ---------------- */}
             {step === 1 && (
               <>
                 <h2 className="text-xl font-semibold">{t("form.step1.title")}</h2>
@@ -309,7 +441,7 @@ function ApplyPage() {
                   <Field label={t("field.country")} error={err("country")}>
                     <Input value={form.country} onChange={(e) => set("country", e.target.value)} />
                   </Field>
-                  <Field label={t("field.nationality")}>
+                  <Field label={t("field.nationality")} error={err("nationality")}>
                     <Input value={form.nationality} onChange={(e) => set("nationality", e.target.value)} />
                   </Field>
                   <Field label={t("field.phone")} error={err("phone")}>
@@ -329,7 +461,6 @@ function ApplyPage() {
               </>
             )}
 
-            {/* ---------------- STEP 2 ---------------- */}
             {step === 2 && (
               <>
                 <h2 className="text-xl font-semibold">{t("form.step2.title")}</h2>
@@ -376,7 +507,7 @@ function ApplyPage() {
                         onChange={(e) => set("other_income", e.target.value)}
                       />
                     </Field>
-                    <Field label={`${t("field.monthly_charges")} (${t("form.optional")})`}>
+                    <Field label={t("field.monthly_charges")} error={err("monthly_charges")}>
                       <Input
                         inputMode="numeric"
                         value={form.monthly_charges}
@@ -388,7 +519,6 @@ function ApplyPage() {
               </>
             )}
 
-            {/* ---------------- STEP 3 ---------------- */}
             {step === 3 && (
               <>
                 <h2 className="text-xl font-semibold">{t("form.step3.title")}</h2>
@@ -464,7 +594,7 @@ function ApplyPage() {
                 </div>
                 {fee && (
                   <p className="rounded-2xl bg-primary/5 p-3.5 text-sm text-muted-foreground">
-                    {t("simulator.processing_fee")} :{" "}
+                    {t("form.fee_label")} :{" "}
                     <strong className="text-primary">
                       {formatMoney(fee.amount, form.currency, locale)}
                     </strong>{" "}
@@ -474,103 +604,107 @@ function ApplyPage() {
               </>
             )}
 
-            {/* ---------------- STEP 4 ---------------- */}
             {step === 4 && (
               <>
                 <h2 className="text-xl font-semibold">{t("form.step4.title")}</h2>
-
-                <div>
-                  <h3 className="text-sm font-semibold">{t("form.documents.title")}</h3>
-                  <p className="mt-1 text-xs text-muted-foreground">{t("form.documents.hint")}</p>
-                  <ul className="mt-4 space-y-3">
-                    {[...requiredDocs, "documents.guarantor"].map((key) => (
-                      <li key={key} className="flex items-start gap-3">
-                        <Checkbox
-                          id={key}
-                          checked={form.documents.includes(key)}
-                          onCheckedChange={(c) =>
-                            set(
-                              "documents",
-                              c
-                                ? [...form.documents, key]
-                                : form.documents.filter((d) => d !== key),
-                            )
-                          }
-                        />
-                        <Label htmlFor={key} className="text-sm font-normal leading-snug">
-                          {t(key as TranslationKey)}
-                        </Label>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                {/* Summary */}
-                <div className="rounded-2xl border border-border bg-muted/40 p-4 sm:p-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <h3 className="text-sm font-semibold">{t("form.summary.title")}</h3>
-                    <Button variant="ghost" size="sm" onClick={() => setStep(1)}>
-                      {t("form.edit")}
-                    </Button>
-                  </div>
-                  <dl className="mt-4 space-y-2 text-sm">
-                    <Sum label={t("field.last_name")} value={`${form.first_name} ${form.last_name}`} />
-                    <Sum label={t("field.country")} value={form.country} />
-                    <Sum
-                      label={t("field.status")}
-                      value={status ? t(`status.${status}` as TranslationKey) : "—"}
-                    />
-                    <Sum label={t("field.loan_type")} value={productLabel} />
-                    <Sum
-                      label={t("field.amount")}
-                      value={formatMoney(Number(form.amount) || 0, form.currency, locale)}
-                    />
-                    <Sum label={t("field.currency")} value={form.currency} />
-                    <Sum
-                      label={t("field.duration")}
-                      value={`${form.duration} ${t("simulator.months")}`}
-                    />
-                    <Sum label={t("field.speed")} value={t(`speed.${form.speed}` as TranslationKey)} />
-                    <Sum
-                      label={t("form.summary.fee_status")}
-                      value={
-                        fee
-                          ? `${formatMoney(fee.amount, form.currency, locale)} — ${t("form.fee_status.pending")}`
-                          : t("form.fee_status.not_applicable")
-                      }
-                    />
-                    <Sum
-                      label={t("form.documents.title")}
-                      value={
-                        form.documents.length
-                          ? form.documents.map((d) => t(d as TranslationKey)).join(" · ")
-                          : "—"
-                      }
-                    />
-                    <Sum label={t("form.summary.contact")} value={`${form.email} · ${form.phone}`} />
-                  </dl>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <Checkbox
-                    id="accept"
-                    checked={form.accept}
-                    onCheckedChange={(c) => set("accept", c === true)}
-                  />
-                  <Label htmlFor="accept" className="text-sm font-normal leading-snug">
-                    {t("apply.field.accept")}
-                  </Label>
-                </div>
-                {err("accept")}
-
-                <p className="flex items-start gap-2 text-xs text-muted-foreground">
-                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                  {t("documents.note")}
-                </p>
+                <p className="text-xs text-muted-foreground">{t("form.documents.hint")}</p>
+                <ul className="space-y-4">
+                  {requiredDocs.map((key) => (
+                    <li key={key} className="rounded-2xl border border-border p-4">
+                      <Label className="text-sm font-medium">{t(key as TranslationKey)}</Label>
+                      <Input
+                        className="mt-2"
+                        type="file"
+                        accept="image/*,.pdf"
+                        onChange={(e) =>
+                          set("files", { ...form.files, [key]: e.target.files?.[0] ?? null })
+                        }
+                      />
+                      {form.files[key] && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {t("form.documents.chosen")} : {form.files[key]?.name}
+                        </p>
+                      )}
+                      {err(key)}
+                    </li>
+                  ))}
+                </ul>
               </>
             )}
 
-            {/* Navigation */}
+            {step === 5 && (
+              <>
+                <h2 className="text-xl font-semibold">{t("form.step5.title")}</h2>
+                {!previewing ? (
+                  <div className="grid gap-5 sm:grid-cols-2">
+                    <Field label={t("field.bank_name")} error={err("bank_name")}>
+                      <Input
+                        autoComplete="off"
+                        value={form.bank_name}
+                        onChange={(e) => set("bank_name", e.target.value)}
+                      />
+                    </Field>
+                    <Field label={t("field.account_holder")} error={err("account_holder_name")}>
+                      <Input
+                        autoComplete="off"
+                        value={form.account_holder_name}
+                        onChange={(e) => set("account_holder_name", e.target.value)}
+                      />
+                    </Field>
+                    <div className="sm:col-span-2">
+                      <Field label={t("field.iban")} error={err("iban_account_number")}>
+                        <Input
+                          autoComplete="off"
+                          value={form.iban_account_number}
+                          onChange={(e) => set("iban_account_number", e.target.value)}
+                        />
+                      </Field>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Field label={`${t("field.swift")} (${t("form.optional")})`}>
+                        <Input
+                          autoComplete="off"
+                          value={form.swift_bic}
+                          onChange={(e) => set("swift_bic", e.target.value)}
+                        />
+                      </Field>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+                        {t("form.contract.badge")}
+                      </p>
+                      <h3 className="text-lg font-semibold">{t("form.contract.title")}</h3>
+                    </div>
+                    {previewUrl && (
+                      <iframe
+                        title={t("form.contract.title")}
+                        src={previewUrl}
+                        className="h-[70vh] w-full rounded-xl border border-border bg-muted"
+                      />
+                    )}
+                    <div className="flex items-start gap-3">
+                      <Checkbox
+                        id="accept"
+                        checked={form.accept}
+                        onCheckedChange={(c) => set("accept", c === true)}
+                      />
+                      <Label htmlFor="accept" className="text-sm font-normal leading-snug">
+                        {t("form.contract.confirm")}
+                      </Label>
+                    </div>
+                    {err("accept")}
+                    <p className="flex items-start gap-2 text-xs text-muted-foreground">
+                      <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                      {t("documents.note")}
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+
             <div className="flex flex-col-reverse gap-3 border-t border-border pt-6 sm:flex-row sm:justify-between">
               <Button
                 type="button"
@@ -581,24 +715,40 @@ function ApplyPage() {
               >
                 {t("form.back")}
               </Button>
-              {step < TOTAL_STEPS ? (
+              {step < 5 && (
                 <Button type="button" className="rounded-full" onClick={next}>
                   {t("form.next")}
                 </Button>
-              ) : (
-                <Button
-                  type="button"
-                  className="rounded-full"
-                  onClick={onSubmit}
-                  disabled={submitting}
-                >
-                  {submitting ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Check className="mr-2 h-4 w-4" />
-                  )}
-                  {t("cta.submit")}
+              )}
+              {step === 5 && !previewing && (
+                <Button type="button" className="rounded-full" onClick={() => void openPreview()}>
+                  {t("form.preview_contract")}
                 </Button>
+              )}
+              {step === 5 && previewing && (
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-full"
+                    onClick={() => setPreviewing(false)}
+                  >
+                    {t("form.contract.edit")}
+                  </Button>
+                  <Button
+                    type="button"
+                    className="rounded-full"
+                    onClick={() => void onSubmit()}
+                    disabled={submitting}
+                  >
+                    {submitting ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Check className="mr-2 h-4 w-4" />
+                    )}
+                    {t("form.contract.submit")}
+                  </Button>
+                </div>
               )}
             </div>
           </motion.div>
@@ -620,15 +770,6 @@ function Field({
         <div className="mt-1.5 font-normal">{children}</div>
       </Label>
       {error}
-    </div>
-  );
-}
-
-function Sum({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="max-w-[60%] text-right font-medium">{value}</dd>
     </div>
   );
 }

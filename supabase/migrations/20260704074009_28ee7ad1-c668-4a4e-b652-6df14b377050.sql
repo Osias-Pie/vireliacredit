@@ -1,1 +1,2 @@
-INSERT INTO public.user_roles (user_id, role) VALUES ('6075246d-70a1-438b-953a-3053636f8ac1', 'admin') ON CONFLICT (user_id, role) DO NOTHING;
+-- Ancien compte administrateur Lovable retiré.
+-- Le nouvel administrateur sera attribué après création du compte dans le nouveau projet Supabase.

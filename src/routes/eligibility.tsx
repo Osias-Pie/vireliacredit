@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { CheckCircle2, FileText } from "lucide-react";
-import { SimplePage } from "@/components/layout/SimplePage";
+import { useEffect } from "react";
+import { PageLayout } from "@/components/layout/PageLayout";
+import { EligibilityCheck } from "@/components/sections/EligibilityCheck";
+import { useAssistantContext } from "@/components/assistant/VireliaAssistant";
 import { useI18n } from "@/lib/i18n/context";
-import { BASE_DOCUMENTS, ELIGIBILITY_CRITERIA } from "@/config/loans";
-import type { TranslationKey } from "@/lib/i18n/translations";
 
 export const Route = createFileRoute("/eligibility")({
   head: () => ({
@@ -12,53 +12,26 @@ export const Route = createFileRoute("/eligibility")({
       {
         name: "description",
         content:
-          "Critères d'éligibilité et documents à prévoir pour une demande de prêt remboursable, quel que soit votre pays de résidence.",
+          "Vérifiez votre éligibilité en trois questions avant de déposer une demande de prêt remboursable.",
       },
-      { property: "og:title", content: "Éligibilité au prêt — Virelia Crédit" },
-      {
-        property: "og:description",
-        content: "Critères et pièces justificatives à prévoir avant toute demande de prêt.",
-      },
-      { property: "og:url", content: "https://vireliacredit.lovable.app/eligibility" },
     ],
-    links: [{ rel: "canonical", href: "https://vireliacredit.lovable.app/eligibility" }],
   }),
   component: EligibilityPage,
 });
 
 function EligibilityPage() {
   const { t } = useI18n();
+  const assistant = useAssistantContext();
+  useEffect(() => {
+    assistant?.setContext({ page: "eligibility" });
+  }, [assistant]);
 
   return (
-    <SimplePage title={t("eligibility.title")} subtitle={t("eligibility.subtitle")}>
-      <ul className="mx-auto mt-8 max-w-2xl space-y-3">
-        {ELIGIBILITY_CRITERIA.map((key) => (
-          <li
-            key={key}
-            className="flex items-start gap-3 rounded-2xl border border-border bg-background p-4"
-          >
-            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-            <span className="text-sm">{t(key as TranslationKey)}</span>
-          </li>
-        ))}
-      </ul>
-
-      <div className="mx-auto mt-14 max-w-2xl">
-        <h2 className="text-xl font-bold tracking-tight">{t("documents.title")}</h2>
-        <p className="mt-2 text-sm text-muted-foreground">{t("documents.subtitle")}</p>
-        <ul className="mt-5 space-y-3">
-          {[...BASE_DOCUMENTS, "documents.income", "documents.activity"].map((key) => (
-            <li
-              key={key}
-              className="flex items-start gap-3 rounded-2xl border border-border bg-background p-4"
-            >
-              <FileText className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-              <span className="text-sm">{t(key as TranslationKey)}</span>
-            </li>
-          ))}
-        </ul>
-        <p className="mt-4 text-xs text-muted-foreground">{t("documents.note")}</p>
+    <PageLayout>
+      <div className="container-page pt-14">
+        <h1 className="sr-only">{t("eligibility.title")}</h1>
       </div>
-    </SimplePage>
+      <EligibilityCheck />
+    </PageLayout>
   );
 }

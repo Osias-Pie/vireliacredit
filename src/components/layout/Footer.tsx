@@ -21,9 +21,9 @@ export function Footer() {
             <h4 className="text-sm font-semibold text-foreground">Navigation</h4>
             <ul className="mt-4 space-y-2.5 text-sm text-muted-foreground">
               <li><Link to="/programs" className="hover:text-primary">{t("nav.solutions")}</Link></li>
-              <li><Link to="/about" className="hover:text-primary">{t("nav.about")}</Link></li>
-              <li><Link to="/process" className="hover:text-primary">{t("nav.process")}</Link></li>
               <li><Link to="/eligibility" className="hover:text-primary">{t("nav.eligibility")}</Link></li>
+              <li><Link to="/suivi" className="hover:text-primary">{t("nav.track")}</Link></li>
+              <li><Link to="/process" className="hover:text-primary">{t("nav.process")}</Link></li>
               <li><Link to="/faq" className="hover:text-primary">{t("nav.faq")}</Link></li>
               <li><Link to="/contact" className="hover:text-primary">{t("nav.contact")}</Link></li>
             </ul>

@@ -26,9 +26,9 @@ export function Header() {
   const links: { to: string; label: string }[] = [
     { to: "/", label: t("nav.home") },
     { to: "/programs", label: t("nav.solutions") },
-    { to: "/simulator", label: t("nav.simulator") },
     { to: "/eligibility", label: t("nav.eligibility") },
     { to: "/process", label: t("nav.process") },
+    { to: "/suivi", label: t("nav.track") },
     { to: "/faq", label: t("nav.faq") },
     { to: "/about", label: t("nav.about") },
     { to: "/contact", label: t("nav.contact") },

@@ -1,5 +1,14 @@
 import { hr as hrRaw } from "./hr";
 import { frExtra, enExtra, deExtra, esExtra, ptExtra, itExtra, hrExtra } from "./extra";
+import {
+  frVirelia,
+  enVirelia,
+  deVirelia,
+  esVirelia,
+  ptVirelia,
+  itVirelia,
+  hrVirelia,
+} from "./virelia";
 
 export const LOCALES = [
   { code: "fr", label: "Français", flag: "🇫🇷" },
@@ -272,7 +281,7 @@ const frBase = {
     "Virelia Crédit présente des solutions de prêt remboursable en Europe et au Canada : simulateur, conditions par marché et demande en ligne.",
 } as const;
 
-const fr = { ...frBase, ...frExtra };
+const fr = { ...frBase, ...frExtra, ...frVirelia };
 export type TranslationKey = keyof typeof fr;
 type Dict = Partial<Record<TranslationKey, string>>;
 
@@ -1439,10 +1448,10 @@ const hr: Dict = { ...hrExtra, ...(hrRaw as Dict) };
  */
 export const translations: Record<Locale, Dict> = {
   fr,
-  en: { ...en, ...enExtra },
-  de: { ...de, ...deExtra },
-  es: { ...es, ...esExtra },
-  pt: { ...pt, ...ptExtra },
-  it: { ...it, ...itExtra },
-  hr: { ...hr, ...hrExtra },
+  en: { ...en, ...enExtra, ...enVirelia },
+  de: { ...de, ...deExtra, ...deVirelia },
+  es: { ...es, ...esExtra, ...esVirelia },
+  pt: { ...pt, ...ptExtra, ...ptVirelia },
+  it: { ...it, ...itExtra, ...itVirelia },
+  hr: { ...hr, ...hrExtra, ...hrVirelia },
 };
