@@ -30,10 +30,18 @@ const contextSchema = z
   })
   .default({});
 
-function localReply(
-  message: string,
-  ctx: z.infer<typeof contextSchema>,
-): string {
+function containsSensitiveBankData(message: string): boolean {
+  const compact = message.replace(/\s+/g, " ").trim();
+  const ibanLike = /\b[A-Z]{2}\d{2}[A-Z0-9]{11,30}\b/i.test(compact.replace(/\s/g, ""));
+  const bankKeyword = /\b(iban|swift|bic|num[eé]ro de compte|account number|bank account)\b/i.test(compact);
+  const longAccountLike = /\b\d{10,34}\b/.test(compact.replace(/[ .-]/g, ""));
+  return ibanLike || (bankKeyword && longAccountLike);
+}
+
+function localReply(message: string, ctx: z.infer<typeof contextSchema>): string {
+  if (containsSensitiveBankData(message)) {
+    return "Je ne peux pas traiter ni transmettre une coordonnée bancaire. Saisissez ces informations uniquement dans l'étape sécurisée « Coordonnées bancaires » du formulaire.";
+  }
   const missing = ctx.missingFields ?? [];
   if (missing.length) {
     return `Il vous reste à renseigner : ${missing.join(", ")} avant de continuer. Je ne peux pas valider un prêt à votre place ; je peux seulement vous indiquer les champs encore vides.`;
@@ -42,9 +50,7 @@ function localReply(
     const extra = ctx.missing_public_requirements
       ? ` Point d'attention communiqué : ${ctx.missing_public_requirements}`
       : " Aucun document supplémentaire n'est indiqué pour le moment.";
-    const msgs = ctx.public_messages?.length
-      ? ` Messages de l'équipe : ${ctx.public_messages.join(" · ")}`
-      : "";
+    const msgs = ctx.public_messages?.length ? ` Messages de l'équipe : ${ctx.public_messages.join(" · ")}` : "";
     return `Votre dossier${ctx.reference ? ` ${ctx.reference}` : ""} est actuellement au statut « ${ctx.status} ».${extra}${msgs} L'équipe étudiera le dossier ; je ne peux ni l'accepter ni le refuser.`;
   }
   if (ctx.page === "eligibility") {
@@ -57,29 +63,28 @@ function localReply(
     return "Conservez votre référence VIR. Sur la page Suivre ma demande, indiquez la référence et l'e-mail utilisé. L'analyse est réalisée par l'équipe ; des justificatifs complémentaires peuvent être demandés.";
   }
   const lower = message.toLowerCase();
-  if (lower.includes("iban") || lower.includes("swift")) {
+  if (lower.includes("iban") || lower.includes("swift") || lower.includes("bic")) {
     return "Je n'ai pas accès à vos coordonnées bancaires et je ne dois pas les traiter. Saisissez-les uniquement dans l'étape prévue du formulaire.";
   }
   return "Je peux vous expliquer les étapes (éligibilité, formulaire, documents, projet de contrat, suivi). Je ne peux pas accorder, refuser ou chiffrer un crédit à votre place.";
 }
 
 export const chatWithAssistant = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) =>
-    z
-      .object({
-        message: z.string().trim().min(1).max(2000),
-        locale: z.string().max(5).optional(),
-        context: contextSchema,
-      })
-      .parse(d),
-  )
+  .inputValidator((d: unknown) => z.object({
+    message: z.string().trim().min(1).max(2000),
+    locale: z.string().max(5).optional(),
+    context: contextSchema,
+  }).parse(d))
   .handler(async ({ data }) => {
     const ctx = data.context ?? {};
-    const apiKey = process.env["OPENAI_API_KEY"];
 
-    if (!apiKey) {
+    // Bank/account values must never leave Virelia for an external AI provider.
+    if (containsSensitiveBankData(data.message)) {
       return { reply: localReply(data.message, ctx) };
     }
+
+    const apiKey = process.env["OPENAI_API_KEY"];
+    if (!apiKey) return { reply: localReply(data.message, ctx) };
 
     const safeContext = {
       page: ctx.page,
@@ -95,28 +100,20 @@ export const chatWithAssistant = createServerFn({ method: "POST" })
     try {
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           model: process.env["OPENAI_MODEL"] || "gpt-4o-mini",
           temperature: 0.3,
           max_tokens: 400,
           messages: [
             { role: "system", content: SYSTEM },
-            {
-              role: "system",
-              content: `Contexte autorisé (aucune donnée bancaire) : ${JSON.stringify(safeContext)}`,
-            },
+            { role: "system", content: `Contexte autorisé (aucune donnée bancaire) : ${JSON.stringify(safeContext)}` },
             { role: "user", content: data.message },
           ],
         }),
       });
       if (!res.ok) return { reply: localReply(data.message, ctx) };
-      const json = (await res.json()) as {
-        choices?: { message?: { content?: string } }[];
-      };
+      const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
       const reply = json.choices?.[0]?.message?.content?.trim();
       return { reply: reply || localReply(data.message, ctx) };
     } catch {
