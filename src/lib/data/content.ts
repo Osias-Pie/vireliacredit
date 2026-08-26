@@ -9,10 +9,7 @@ export interface Testimonial {
   rating: number;
 }
 
-/**
- * No testimonial is published yet: only real, verified borrower feedback may be
- * added here. While the list is empty the section is hidden.
- */
+/** Only real, verified borrower feedback may be published here. */
 export const TESTIMONIALS: Testimonial[] = [];
 
 export interface Faq {
@@ -23,38 +20,38 @@ export interface Faq {
 export const FAQS: Faq[] = [
   {
     q: "Virelia Crédit propose-t-il des subventions ou des aides non remboursables ?",
-    a: "Non. Virelia Crédit présente uniquement des solutions de prêt remboursables. Tout montant accordé doit être remboursé selon un échéancier convenu.",
+    a: "Non. Virelia Crédit présente uniquement des solutions de prêt remboursables. Tout financement éventuellement accordé reste soumis à l'étude du dossier et aux conditions qui seront communiquées après validation.",
   },
   {
-    q: "Dans quels pays puis-je déposer une demande ?",
-    a: "Les demandes sont étudiées pour les résidents des pays actuellement desservis : France, Allemagne, Espagne, Portugal, Suisse, Canada et Croatie. Le pays de résidence doit être confirmé avant l'envoi du dossier.",
+    q: "Puis-je déposer une demande quel que soit mon pays de résidence ?",
+    a: "Oui. Le pays de résidence est demandé uniquement comme information du dossier. Il ne déclenche ni blocage géographique, ni devise imposée, ni décision automatique.",
   },
   {
-    q: "Quels sont les taux et les frais appliqués ?",
-    a: "Les conditions tarifaires sont définies marché par marché. Tant qu'elles ne sont pas publiées, la mention « en cours de configuration » est affichée : aucun taux ni frais n'est inventé.",
+    q: "Quels sont les taux et les conditions financières ?",
+    a: "Virelia Crédit n'affiche aucun taux, TAEG ou coût de crédit qui n'a pas été réellement configuré. Les conditions définitives sont précisées après l'étude et la validation du dossier.",
   },
   {
-    q: "Des frais sont-ils demandés avant le versement du prêt ?",
-    a: "Il n'existe aucune règle générale. Lorsqu'un marché prévoit des frais exigibles avant décaissement, ils sont indiqués dans la configuration du marché, dans le simulateur et dans le récapitulatif de la demande, avant toute signature.",
+    q: "Quels frais de traitement sont affichés ?",
+    a: "Lorsque vous choisissez un délai de traitement, les frais de service correspondants sont affichés dans le formulaire avant l'envoi de la demande. Ils constituent des paramètres du service et ne sont présentés ni comme une taxe ni comme une obligation réglementaire.",
   },
   {
     q: "Le dépôt d'une demande garantit-il l'obtention d'un prêt ?",
-    a: "Non. Chaque dossier est étudié individuellement, notamment au regard de la capacité de remboursement. Aucune approbation, aucun délai et aucun taux ne sont garantis à l'avance.",
+    a: "Non. Chaque dossier est étudié individuellement. La vérification d'éligibilité et le dépôt d'une demande ne constituent jamais une acceptation automatique ou une garantie de crédit.",
   },
   {
-    q: "Le simulateur a-t-il une valeur contractuelle ?",
-    a: "Non. Il fournit une estimation indicative. Seule l'offre de prêt écrite qui vous serait adressée après étude a une valeur contractuelle.",
+    q: "À quoi sert la vérification d'éligibilité ?",
+    a: "Elle sert uniquement à orienter le visiteur en trois questions. Même lorsqu'une situation nécessite une étude complémentaire, il reste possible de déposer une demande pour analyse humaine.",
   },
   {
-    q: "Comment se déroule le suivi de mon dossier ?",
-    a: `Le suivi se fait par écrit, par e-mail${CONTACT.applicationEmail ? ` (${CONTACT.applicationEmail})` : ""}, afin que vous conserviez une trace de chaque échange.`,
+    q: "Comment suivre ma demande ?",
+    a: `Utilisez la page « Suivre ma demande » avec votre référence VIR et l'e-mail utilisé lors du dépôt. Vous pouvez aussi contacter l'équipe par e-mail${CONTACT.applicationEmail ? ` (${CONTACT.applicationEmail})` : ""}.`,
   },
   {
     q: "Quels documents dois-je préparer ?",
-    a: "Généralement une pièce d'identité en cours de validité, un justificatif de domicile récent, des justificatifs de revenus, un justificatif d'activité et des relevés bancaires. La liste exacte dépend du marché et de la solution de prêt.",
+    a: "Une pièce d'identité et un justificatif de domicile sont demandés. Selon votre situation, un justificatif de revenus, de pension ou d'activité professionnelle peut également être requis. Aucun document de garant n'est demandé.",
   },
   {
-    q: "Que deviennent mes données personnelles ?",
-    a: "Elles sont utilisées uniquement pour l'étude de votre demande de prêt et ne sont pas cédées à des tiers à des fins commerciales.",
+    q: "Que deviennent mes données personnelles et bancaires ?",
+    a: "Les données bancaires et les documents sont traités comme des informations sensibles. Ils ne sont pas affichés dans le suivi public et les fichiers sont stockés dans des espaces privés.",
   },
 ];
