@@ -42,7 +42,7 @@ export function Header() {
       <div className="container-page flex h-[4.5rem] items-center justify-between gap-5">
         <Logo className="shrink-0" />
 
-        <nav className="hidden flex-1 items-center justify-center gap-1 xl:flex" aria-label="Primary">
+        <nav className="hidden flex-1 items-center justify-center gap-1 lg:flex" aria-label="Primary">
           {links.map((l) => (
             <Link
               key={l.to}
@@ -65,7 +65,7 @@ export function Header() {
           <Button
             variant="ghost"
             size="icon"
-            className="xl:hidden"
+            className="lg:hidden"
             onClick={() => setOpen((o) => !o)}
             aria-label="Menu"
             aria-expanded={open}
@@ -76,7 +76,7 @@ export function Header() {
       </div>
 
       {open && (
-        <div className="border-t border-border/60 bg-background xl:hidden">
+        <div className="border-t border-border/60 bg-background lg:hidden">
           <div className="container-page flex flex-col gap-1 py-4">
             {links.map((l) => (
               <Link
