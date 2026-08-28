@@ -16,6 +16,8 @@ export interface LoanProduct {
   audience: string;
 }
 
+const BRAND_GRADIENT = "from-[#0B2A5B] to-[#0B2A5B]";
+
 export const LOAN_PRODUCTS: LoanProduct[] = [
   {
     slug: "personal",
@@ -24,7 +26,7 @@ export const LOAN_PRODUCTS: LoanProduct[] = [
     descKey: "product.personal.desc",
     title: "Prêt personnel",
     description: "Un prêt remboursable pour financer un besoin privé : équipement, imprévu, mobilité ou consolidation.",
-    gradient: "from-blue-700 to-blue-500",
+    gradient: BRAND_GRADIENT,
     audienceKey: "product.personal.audience",
     audience: "Particuliers",
   },
@@ -35,7 +37,7 @@ export const LOAN_PRODUCTS: LoanProduct[] = [
     descKey: "product.professional.desc",
     title: "Prêt professionnel",
     description: "Financement remboursable destiné aux indépendants et professions libérales pour leur activité.",
-    gradient: "from-sky-700 to-blue-500",
+    gradient: BRAND_GRADIENT,
     audienceKey: "product.professional.audience",
     audience: "Indépendants",
   },
@@ -46,7 +48,7 @@ export const LOAN_PRODUCTS: LoanProduct[] = [
     descKey: "product.business.desc",
     title: "Prêt entreprise",
     description: "Prêt remboursable pour les TPE et PME : trésorerie, équipement ou développement commercial.",
-    gradient: "from-slate-800 to-blue-600",
+    gradient: BRAND_GRADIENT,
     audienceKey: "product.business.audience",
     audience: "TPE & PME",
   },
@@ -57,7 +59,7 @@ export const LOAN_PRODUCTS: LoanProduct[] = [
     descKey: "product.housing.desc",
     title: "Prêt travaux et habitat",
     description: "Financement remboursable pour la rénovation, l'aménagement ou l'amélioration d'un logement.",
-    gradient: "from-indigo-700 to-blue-500",
+    gradient: BRAND_GRADIENT,
     audienceKey: "product.housing.audience",
     audience: "Propriétaires & locataires",
   },
@@ -68,7 +70,7 @@ export const LOAN_PRODUCTS: LoanProduct[] = [
     descKey: "product.studies.desc",
     title: "Prêt études",
     description: "Prêt remboursable pour financer une formation, un cursus supérieur ou une certification.",
-    gradient: "from-blue-600 to-cyan-500",
+    gradient: BRAND_GRADIENT,
     audienceKey: "product.studies.audience",
     audience: "Étudiants & apprenants",
   },
@@ -79,7 +81,7 @@ export const LOAN_PRODUCTS: LoanProduct[] = [
     descKey: "product.project.desc",
     title: "Prêt projet",
     description: "Financement remboursable pour un projet identifié, présenté et documenté par l'emprunteur.",
-    gradient: "from-blue-800 to-indigo-500",
+    gradient: BRAND_GRADIENT,
     audienceKey: "product.project.audience",
     audience: "Porteurs de projet",
   },
@@ -90,7 +92,7 @@ export const LOAN_PRODUCTS: LoanProduct[] = [
     descKey: "product.retired.desc",
     title: "Prêt retraité",
     description: "Une solution de financement destinée aux retraités, sous réserve de l'étude individuelle du dossier et des justificatifs transmis.",
-    gradient: "from-slate-700 to-blue-500",
+    gradient: BRAND_GRADIENT,
     audienceKey: "product.retired.audience",
     audience: "Retraités",
   },
