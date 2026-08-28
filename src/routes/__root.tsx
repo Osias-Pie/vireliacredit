@@ -50,7 +50,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
           <button onClick={() => { router.invalidate(); reset(); }} className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
             Réessayer
           </button>
-          <a href="/" className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-accent">
+          <a href="/" className="inline-flex items-center justify-center rounded-md border border-gold/35 bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-accent">
             Accueil
           </a>
         </div>
@@ -71,10 +71,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { name: "application-name", content: "Virelia Crédit" },
       { name: "apple-mobile-web-app-title", content: "Virelia Crédit" },
-      { name: "theme-color", content: "#0B1F3A" },
+      { name: "theme-color", content: "#0B2A5B" },
       { property: "og:site_name", content: "Virelia Crédit" },
       { property: "og:title", content: "Virelia Crédit — Solutions de prêt remboursable" },
-      { property: "og:description", content: "Éligibilité, demande en cinq étapes et suivi de dossier, sans décision automatique par pays." },
+      { property: "og:description", content: "Éligibilité, demande en cinq étapes, projets de contrat et suivi sécurisé par référence VIR." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "Virelia Crédit — Solutions de prêt remboursable" },
