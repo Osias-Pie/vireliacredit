@@ -23,6 +23,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProcessRouteImport } from './routes/process'
 import { Route as ProgramsRouteImport } from './routes/programs'
 import { Route as SimulatorRouteImport } from './routes/simulator'
+import { Route as SuiviRouteImport } from './routes/suivi'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as TestimonialsRouteImport } from './routes/testimonials'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
@@ -96,6 +97,11 @@ const SimulatorRoute = SimulatorRouteImport.update({
   path: '/simulator',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SuiviRoute = SuiviRouteImport.update({
+  id: '/suivi',
+  path: '/suivi',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
@@ -126,6 +132,7 @@ export interface FileRoutesByFullPath {
   '/process': typeof ProcessRoute
   '/programs': typeof ProgramsRoute
   '/simulator': typeof SimulatorRoute
+  '/suivi': typeof SuiviRoute
   '/terms': typeof TermsRoute
   '/testimonials': typeof TestimonialsRoute
   '/admin': typeof AuthenticatedAdminRoute
@@ -144,6 +151,7 @@ export interface FileRoutesByTo {
   '/process': typeof ProcessRoute
   '/programs': typeof ProgramsRoute
   '/simulator': typeof SimulatorRoute
+  '/suivi': typeof SuiviRoute
   '/terms': typeof TermsRoute
   '/testimonials': typeof TestimonialsRoute
   '/admin': typeof AuthenticatedAdminRoute
@@ -164,6 +172,7 @@ export interface FileRoutesById {
   '/process': typeof ProcessRoute
   '/programs': typeof ProgramsRoute
   '/simulator': typeof SimulatorRoute
+  '/suivi': typeof SuiviRoute
   '/terms': typeof TermsRoute
   '/testimonials': typeof TestimonialsRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
@@ -184,6 +193,7 @@ export interface FileRouteTypes {
     | '/process'
     | '/programs'
     | '/simulator'
+    | '/suivi'
     | '/terms'
     | '/testimonials'
     | '/admin'
@@ -202,6 +212,7 @@ export interface FileRouteTypes {
     | '/process'
     | '/programs'
     | '/simulator'
+    | '/suivi'
     | '/terms'
     | '/testimonials'
     | '/admin'
@@ -221,6 +232,7 @@ export interface FileRouteTypes {
     | '/process'
     | '/programs'
     | '/simulator'
+    | '/suivi'
     | '/terms'
     | '/testimonials'
     | '/_authenticated/admin'
@@ -241,6 +253,7 @@ export interface RootRouteChildren {
   ProcessRoute: typeof ProcessRoute
   ProgramsRoute: typeof ProgramsRoute
   SimulatorRoute: typeof SimulatorRoute
+  SuiviRoute: typeof SuiviRoute
   TermsRoute: typeof TermsRoute
   TestimonialsRoute: typeof TestimonialsRoute
 }
@@ -345,6 +358,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SimulatorRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/suivi': {
+      id: '/suivi'
+      path: '/suivi'
+      fullPath: '/suivi'
+      preLoaderRoute: typeof SuiviRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/terms': {
       id: '/terms'
       path: '/terms'
@@ -395,6 +415,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProcessRoute: ProcessRoute,
   ProgramsRoute: ProgramsRoute,
   SimulatorRoute: SimulatorRoute,
+  SuiviRoute: SuiviRoute,
   TermsRoute: TermsRoute,
   TestimonialsRoute: TestimonialsRoute,
 }
