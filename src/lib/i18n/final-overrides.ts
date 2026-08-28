@@ -31,6 +31,8 @@ export const FINAL_I18N_OVERRIDES: Record<string, Record<string, string>> = {
     "transparency.item3.title": "Étude individuelle du dossier",
     "transparency.item3.text":
       "Le pays de résidence est une information du dossier et ne déclenche ni blocage géographique ni décision automatique.",
+    "apply.error.generic":
+      "La demande n’a pas pu être enregistrée complètement. Aucun dossier incomplet n’est conservé. Vérifiez votre connexion puis réessayez ; si le problème persiste, contactez l’équipe Virelia.",
     "assistant.error":
       "Je reste disponible pour répondre aux questions essentielles sur Virelia, la demande, les documents, le contrat et le suivi.",
     "meta.home.description":
