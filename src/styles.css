@@ -41,74 +41,70 @@
   --color-surface: var(--surface);
   --color-surface-elevated: var(--surface-elevated);
 
-  --shadow-soft: 0 1px 2px rgba(16,24,40,.04), 0 8px 24px -12px rgba(16,24,40,.14);
-  --shadow-elegant: 0 20px 60px -24px rgba(11,31,58,.30);
-  --shadow-glow: 0 28px 80px -28px rgba(21,94,239,.32);
-  --shadow-gold: 0 12px 36px -16px rgba(214,168,95,.34);
+  --shadow-soft: 0 1px 2px rgb(11 42 91 / 0.05), 0 10px 28px -14px rgb(11 42 91 / 0.20);
+  --shadow-elegant: 0 22px 64px -26px rgb(11 42 91 / 0.34);
+  --shadow-glow: 0 24px 68px -28px rgb(212 175 55 / 0.30);
+  --shadow-gold: 0 14px 38px -18px rgb(212 175 55 / 0.38);
 }
 
 :root {
   --radius: 0.875rem;
 
-  --primary: #155EEF;
+  /* Official Virelia brand: blue #0B2A5B, gold #D4AF37, white #FFFFFF. */
+  --primary: #0B2A5B;
   --primary-foreground: #FFFFFF;
-  --primary-light: #3B76F6;
-  --primary-dark: #0B1F3A;
+  --primary-light: color-mix(in srgb, #0B2A5B 82%, #FFFFFF);
+  --primary-dark: #0B2A5B;
+  --gold: #D4AF37;
+  --gold-foreground: #0B2A5B;
 
-  /* Gold is intentionally secondary and used only as a restrained accent. */
-  --gold: #D6A85F;
-  --gold-foreground: #0B1F3A;
-
-  --background: #F8F7F3;
-  --foreground: #101828;
-  --surface: #F1F5FB;
+  --background: #FFFFFF;
+  --foreground: #0B2A5B;
+  --surface: color-mix(in srgb, #0B2A5B 4%, #FFFFFF);
   --surface-elevated: #FFFFFF;
-
   --card: #FFFFFF;
-  --card-foreground: #101828;
+  --card-foreground: #0B2A5B;
   --popover: #FFFFFF;
-  --popover-foreground: #101828;
-
-  --secondary: #DCE9FF;
-  --secondary-foreground: #0B1F3A;
-  --muted: #EEF2F7;
-  --muted-foreground: #667085;
-  --accent: #DCE9FF;
-  --accent-foreground: #155EEF;
-
-  --destructive: #D92D20;
+  --popover-foreground: #0B2A5B;
+  --secondary: color-mix(in srgb, #0B2A5B 7%, #FFFFFF);
+  --secondary-foreground: #0B2A5B;
+  --muted: color-mix(in srgb, #0B2A5B 5%, #FFFFFF);
+  --muted-foreground: color-mix(in srgb, #0B2A5B 66%, #FFFFFF);
+  --accent: color-mix(in srgb, #D4AF37 16%, #FFFFFF);
+  --accent-foreground: #0B2A5B;
+  --destructive: #0B2A5B;
   --destructive-foreground: #FFFFFF;
-  --border: #E4E7EC;
-  --input: #D0D5DD;
-  --ring: #155EEF;
+  --border: color-mix(in srgb, #0B2A5B 15%, #FFFFFF);
+  --input: color-mix(in srgb, #0B2A5B 24%, #FFFFFF);
+  --ring: #D4AF37;
 }
 
 .dark {
-  --primary: #7AA2FF;
-  --primary-foreground: #07172B;
-  --primary-light: #A7C0FF;
-  --primary-dark: #07172B;
-  --gold: #D6A85F;
-  --gold-foreground: #07172B;
-  --background: #081426;
-  --foreground: #F5F7FA;
-  --surface: #0D1D33;
-  --surface-elevated: #10233E;
-  --card: #10233E;
-  --card-foreground: #F5F7FA;
-  --popover: #10233E;
-  --popover-foreground: #F5F7FA;
-  --secondary: #142B49;
-  --secondary-foreground: #F5F7FA;
-  --muted: #142B49;
-  --muted-foreground: #A9B5C7;
-  --accent: #173A67;
-  --accent-foreground: #DCE9FF;
-  --destructive: #F97066;
-  --destructive-foreground: #FFFFFF;
-  --border: #223B5C;
-  --input: #2B466A;
-  --ring: #7AA2FF;
+  --primary: #D4AF37;
+  --primary-foreground: #0B2A5B;
+  --primary-light: color-mix(in srgb, #D4AF37 78%, #FFFFFF);
+  --primary-dark: #0B2A5B;
+  --gold: #D4AF37;
+  --gold-foreground: #0B2A5B;
+  --background: #0B2A5B;
+  --foreground: #FFFFFF;
+  --surface: color-mix(in srgb, #FFFFFF 6%, #0B2A5B);
+  --surface-elevated: color-mix(in srgb, #FFFFFF 9%, #0B2A5B);
+  --card: color-mix(in srgb, #FFFFFF 9%, #0B2A5B);
+  --card-foreground: #FFFFFF;
+  --popover: color-mix(in srgb, #FFFFFF 10%, #0B2A5B);
+  --popover-foreground: #FFFFFF;
+  --secondary: color-mix(in srgb, #FFFFFF 8%, #0B2A5B);
+  --secondary-foreground: #FFFFFF;
+  --muted: color-mix(in srgb, #FFFFFF 8%, #0B2A5B);
+  --muted-foreground: color-mix(in srgb, #FFFFFF 72%, #0B2A5B);
+  --accent: color-mix(in srgb, #D4AF37 16%, #0B2A5B);
+  --accent-foreground: #FFFFFF;
+  --destructive: #D4AF37;
+  --destructive-foreground: #0B2A5B;
+  --border: color-mix(in srgb, #FFFFFF 16%, #0B2A5B);
+  --input: color-mix(in srgb, #FFFFFF 24%, #0B2A5B);
+  --ring: #D4AF37;
 }
 
 @layer base {
@@ -139,7 +135,7 @@ a[href*="lovable.app"][target="_blank"][rel*="noopener"] {
 }
 
 @utility text-gradient-primary {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+  background: linear-gradient(135deg, #0B2A5B 0%, color-mix(in srgb, #0B2A5B 72%, #D4AF37) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -157,6 +153,6 @@ a[href*="lovable.app"][target="_blank"][rel*="noopener"] {
   &:hover {
     box-shadow: var(--shadow-elegant);
     transform: translateY(-2px);
-    border-color: color-mix(in oklch, var(--primary) 30%, var(--border));
+    border-color: color-mix(in srgb, #D4AF37 55%, var(--border));
   }
 }
