@@ -32,19 +32,20 @@ export const STATUS_LABEL_FR: Record<ApplicationStatus, string> = {
   archivee: "Archivée",
 };
 
+/** Statuses differ through label and intensity while staying inside the official blue / gold / white palette. */
 export const STATUS_TONE: Record<ApplicationStatus, string> = {
-  nouvelle_demande: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-  dossier_en_verification: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
-  documents_a_completer: "bg-orange-500/10 text-orange-600 dark:text-orange-400",
-  complement_requis: "bg-orange-500/10 text-orange-600 dark:text-orange-400",
-  en_analyse: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  contrat_en_preparation: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",
-  contrat_a_valider: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
-  approuvee: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  acceptee: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  virement_en_preparation: "bg-teal-500/10 text-teal-600 dark:text-teal-400",
-  terminee: "bg-emerald-700/10 text-emerald-700 dark:text-emerald-300",
-  refusee: "bg-red-500/10 text-red-600 dark:text-red-400",
+  nouvelle_demande: "bg-primary/10 text-primary dark:bg-white/10 dark:text-white",
+  dossier_en_verification: "bg-primary/12 text-primary dark:bg-white/12 dark:text-white",
+  documents_a_completer: "bg-gold/15 text-foreground dark:text-gold",
+  complement_requis: "bg-gold/18 text-foreground dark:text-gold",
+  en_analyse: "bg-primary/14 text-primary dark:bg-white/14 dark:text-white",
+  contrat_en_preparation: "bg-primary/16 text-primary dark:bg-white/16 dark:text-white",
+  contrat_a_valider: "bg-gold/15 text-foreground dark:text-gold",
+  approuvee: "bg-gold/22 text-foreground dark:text-gold",
+  acceptee: "bg-gold/22 text-foreground dark:text-gold",
+  virement_en_preparation: "bg-gold/18 text-foreground dark:text-gold",
+  terminee: "bg-gold/25 text-foreground dark:text-gold",
+  refusee: "border border-gold/45 bg-transparent text-foreground dark:text-white",
   archivee: "bg-muted text-muted-foreground",
 };
 
