@@ -86,7 +86,7 @@ export const chatWithAssistant = createServerFn({ method: "POST" })
         },
         body: JSON.stringify({
           model: process.env.OPENAI_MODEL || "gpt-5-mini",
-          max_tokens: 500,
+          max_completion_tokens: 500,
           messages: [
             { role: "system", content: SYSTEM },
             {
