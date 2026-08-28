@@ -50,7 +50,6 @@ export function VireliaAssistant() {
       const res = await chatWithAssistant({ data: { message: text, locale, context } });
       setMessages((m) => [...m, { role: "assistant", text: res.reply }]);
     } catch {
-      // If the server function itself cannot be reached, core Virelia help remains available locally.
       setMessages((m) => [
         ...m,
         { role: "assistant", text: answerFromVireliaKnowledge(text, context, locale) },
@@ -66,7 +65,7 @@ export function VireliaAssistant() {
         <div className="flex h-[min(28rem,70vh)] w-[min(22rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-gold/30 bg-background shadow-xl">
           <div className="flex items-center justify-between border-b border-gold/20 bg-primary px-4 py-3 text-primary-foreground">
             <p className="text-sm font-semibold">{t("assistant.title")}</p>
-            <button type="button" onClick={() => setOpen(false)} aria-label="Fermer l'assistant">
+            <button type="button" onClick={() => setOpen(false)} aria-label={t("assistant.close")}>
               <X className="h-4 w-4" />
             </button>
           </div>

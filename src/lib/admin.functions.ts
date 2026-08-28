@@ -3,34 +3,15 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { APPLICATION_STATUSES, type ApplicationStatus } from "@/lib/status";
 import { generateLoanContractPdf } from "@/lib/contracts/generate-loan-contract";
+import { normalizeLocale, type SupportedLocale } from "@/lib/i18n/locale-core";
+import {
+  dossierValues,
+  localizeEmployment,
+  localizeProgram,
+  localizeSpeed,
+} from "@/lib/i18n/application-values";
 
 export { APPLICATION_STATUSES, type ApplicationStatus };
-
-const PROGRAM_LABELS: Record<string, string> = {
-  personal: "Prêt personnel",
-  professional: "Prêt professionnel",
-  business: "Prêt entreprise",
-  housing: "Prêt travaux et habitat",
-  studies: "Prêt études",
-  project: "Prêt projet",
-  retired: "Prêt retraité",
-};
-
-const EMPLOYMENT_LABELS: Record<string, string> = {
-  employee: "Salarié",
-  self_employed: "Indépendant",
-  business_owner: "Chef d’entreprise",
-  retired: "Retraité",
-  other: "Autre situation",
-};
-
-const SPEED_LABELS: Record<string, string> = {
-  urgent: "Urgent",
-  "24h": "24 h",
-  "48h": "48 h",
-  "3_5_business_days": "3 à 5 jours ouvrés",
-  within_one_week: "Sous une semaine",
-};
 
 const APPROVED_STATUSES = new Set<ApplicationStatus>([
   "approuvee",
@@ -89,9 +70,18 @@ async function serverAdminClient() {
   });
 }
 
-function money(value: unknown, currency: string) {
+const LOCALE_TAGS: Record<SupportedLocale, string> = {
+  fr: "fr-FR", en: "en-GB", de: "de-DE", es: "es-ES", pt: "pt-PT", it: "it-IT", hr: "hr-HR",
+};
+
+function money(value: unknown, currency: string, locale: SupportedLocale) {
   const n = Number(value);
-  return Number.isFinite(n) ? `${n} ${currency}` : "Non renseigné";
+  if (!Number.isFinite(n)) return dossierValues(locale).notProvided;
+  try {
+    return new Intl.NumberFormat(LOCALE_TAGS[locale], { style: "currency", currency }).format(n);
+  } catch {
+    return `${n} ${currency}`;
+  }
 }
 
 async function regenerateContractsForStatus(applicationId: string, status: ApplicationStatus) {
@@ -110,9 +100,14 @@ async function regenerateContractsForStatus(applicationId: string, status: Appli
     .maybeSingle();
   if (bankError || !bank) throw new Error("contract_bank_details_unavailable");
 
+  // Contract regeneration always follows the language stored with the application,
+  // never the administrator's current browser language.
+  const locale = normalizeLocale(app.locale || app.language) ?? "fr";
+  const values = dossierValues(locale);
   const approved = APPROVED_STATUSES.has(status);
   const input = {
     reference: app.reference,
+    locale,
     firstName: app.first_name,
     lastName: app.last_name,
     birthDate: app.birth_date,
@@ -120,16 +115,16 @@ async function regenerateContractsForStatus(applicationId: string, status: Appli
     address: app.address,
     phone: app.phone,
     email: app.email,
-    employmentLabel: EMPLOYMENT_LABELS[app.employment_status || ""] || app.employment_status || "Situation déclarée",
-    incomeLabel: money(app.income, app.currency),
-    monthlyChargesLabel: money(app.monthly_charges, app.currency),
-    programLabel: PROGRAM_LABELS[app.program] || app.program,
-    purpose: app.purpose || app.description || "Objet déclaré dans le dossier",
-    amountLabel: money(app.amount, app.currency),
+    employmentLabel: localizeEmployment(app.employment_status, locale),
+    incomeLabel: money(app.income, app.currency, locale),
+    monthlyChargesLabel: money(app.monthly_charges, app.currency, locale),
+    programLabel: localizeProgram(app.program, locale),
+    purpose: app.purpose || app.description || values.notProvided,
+    amountLabel: money(app.amount, app.currency, locale),
     currency: app.currency,
     durationMonths: String(app.duration_months || "—"),
-    processingSpeedLabel: SPEED_LABELS[app.processing_speed || ""] || app.processing_speed || "Non renseigné",
-    processingFeeLabel: money(app.processing_fee, app.currency),
+    processingSpeedLabel: localizeSpeed(app.processing_speed, locale),
+    processingFeeLabel: app.processing_fee == null ? values.notApplicable : money(app.processing_fee, app.currency, locale),
     bankName: bank.bank_name,
     accountHolderName: bank.account_holder_name,
     ibanAccountNumber: bank.iban_account_number,
@@ -165,7 +160,7 @@ async function regenerateContractsForStatus(applicationId: string, status: Appli
     throw new Error("contract_regeneration_upload_failed");
   }
 
-  return { approved, structuredPath, narrativePath };
+  return { approved, locale, structuredPath, narrativePath };
 }
 
 export const getCurrentAdmin = createServerFn({ method: "GET" })
@@ -223,7 +218,6 @@ export const getApplicationAdminDetail = createServerFn({ method: "POST" })
         .order("created_at", { ascending: true }),
     ]);
 
-    // Secondary data must not crash the whole dashboard.
     if (bankResult.error) adminLog("detail_bank_degraded", bankResult.error, { applicationId: data.id });
     if (historyResult.error) adminLog("detail_history_degraded", historyResult.error, { applicationId: data.id });
 

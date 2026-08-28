@@ -3,6 +3,8 @@ import { z } from "zod";
 import { generateLoanContractPdf } from "@/lib/contracts/generate-loan-contract";
 import { getProcessingFee } from "@/config/loans";
 import type { ProcessingSpeed } from "@/config/loans";
+import { normalizeLocale } from "@/lib/i18n/locale-core";
+import { dossierValues, localizeEmployment } from "@/lib/i18n/application-values";
 
 const num = z
   .union([z.number(), z.string()])
@@ -42,6 +44,7 @@ const schema = z.object({
   purpose: z.string().trim().min(10).max(4000),
   processing_speed: z.string().trim().max(50),
   processing_fee: num,
+  locale: z.enum(["fr", "en", "de", "es", "pt", "it", "hr"]).optional(),
   language: z.string().trim().max(5).optional(),
   program_label: z.string().trim().max(120).optional(),
   speed_label: z.string().trim().max(120).optional(),
@@ -56,21 +59,12 @@ const schema = z.object({
 
 export type ApplicationInput = z.input<typeof schema>;
 
-const EMPLOYMENT_LABELS: Record<string, string> = {
-  employee: "Salarié",
-  self_employed: "Indépendant",
-  business_owner: "Chef d’entreprise",
-  retired: "Retraité",
-  other: "Autre situation",
-};
-
 function safeLog(stage: string, error?: unknown, extra: Record<string, unknown> = {}) {
   const technical = error instanceof Error
     ? { name: error.name, message: error.message.slice(0, 500) }
     : error && typeof error === "object"
       ? { code: String((error as { code?: unknown }).code ?? "unknown"), message: String((error as { message?: unknown }).message ?? "").slice(0, 500) }
       : { message: String(error ?? "").slice(0, 500) };
-  // Never include submitted payloads, bank data, document contents, tokens or secrets here.
   console.error("[Virelia submission]", { stage, ...technical, ...extra });
 }
 
@@ -134,7 +128,6 @@ async function resolveCreatedApplication(
     }
   }
 
-  // Compatibility with the pre-2026-08-26 RPC which returned only VIR-YYYY-XXXXXX.
   if (typeof created === "string" && created.startsWith("VIR-")) {
     const { data, error } = await client
       .from("applications")
@@ -176,6 +169,7 @@ async function ensureBankDetails(
 async function ensureInitialHistory(
   client: Awaited<ReturnType<typeof serverSupabase>>,
   applicationId: string,
+  locale: ReturnType<typeof normalizeLocale>,
 ) {
   const { data, error } = await client
     .from("application_status_history")
@@ -188,10 +182,11 @@ async function ensureInitialHistory(
   }
   if (data?.length) return;
 
+  const activeLocale = locale ?? "fr";
   const { error: insertError } = await client.from("application_status_history").insert({
     application_id: applicationId,
     status: "nouvelle_demande",
-    public_message: "Votre demande a bien été reçue. Notre équipe va l'examiner.",
+    public_message: dossierValues(activeLocale).received,
   });
   if (insertError) {
     safeLog("history_insert", insertError, { applicationId });
@@ -203,6 +198,8 @@ export const submitApplication = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => schema.parse(data))
   .handler(async ({ data }) => {
     const client = await serverSupabase();
+    const applicationLocale = normalizeLocale(data.locale ?? data.language) ?? "fr";
+    const values = dossierValues(applicationLocale);
     const fee =
       data.processing_fee ??
       getProcessingFee(data.program, data.processing_speed as ProcessingSpeed)?.amount ??
@@ -231,7 +228,7 @@ export const submitApplication = createServerFn({ method: "POST" })
       processing_speed: data.processing_speed,
       processing_fee: fee ?? "",
       documents: [],
-      language: data.language ?? "",
+      language: applicationLocale,
       bank_name: data.bank_name,
       account_holder_name: data.account_holder_name,
       iban_account_number: data.iban_account_number,
@@ -248,9 +245,8 @@ export const submitApplication = createServerFn({ method: "POST" })
     const documentMeta: { key: string; filename: string; path: string }[] = [];
 
     try {
-      // Old RPC versions only created the application row. Upsert guarantees bank details after either RPC shape.
       await ensureBankDetails(client, applicationId, data);
-      await ensureInitialHistory(client, applicationId);
+      await ensureInitialHistory(client, applicationId, applicationLocale);
 
       for (const file of data.files) {
         const ext = file.filename.includes(".") ? file.filename.slice(file.filename.lastIndexOf(".")) : "";
@@ -268,6 +264,7 @@ export const submitApplication = createServerFn({ method: "POST" })
 
       const contractInput = {
         reference,
+        locale: applicationLocale,
         firstName: data.first_name,
         lastName: data.last_name,
         birthDate: data.birth_date,
@@ -275,17 +272,17 @@ export const submitApplication = createServerFn({ method: "POST" })
         address: data.address,
         phone: data.phone,
         email: data.email,
-        employmentLabel: EMPLOYMENT_LABELS[data.employment_status] ?? data.employment_status,
-        incomeLabel: data.income != null ? `${data.income} ${data.currency}` : "Non renseigné",
+        employmentLabel: localizeEmployment(data.employment_status, applicationLocale),
+        incomeLabel: data.income != null ? `${data.income} ${data.currency}` : values.notProvided,
         monthlyChargesLabel:
-          data.monthly_charges != null ? `${data.monthly_charges} ${data.currency}` : "Non renseigné",
+          data.monthly_charges != null ? `${data.monthly_charges} ${data.currency}` : values.notProvided,
         programLabel: data.program_label || data.program,
         purpose: data.purpose,
         amountLabel: `${data.amount} ${data.currency}`,
         currency: data.currency,
         durationMonths: String(data.duration_months),
         processingSpeedLabel: data.speed_label || data.processing_speed,
-        processingFeeLabel: fee != null ? `${fee} ${data.currency}` : "Non applicable",
+        processingFeeLabel: fee != null ? `${fee} ${data.currency}` : values.notApplicable,
         bankName: data.bank_name,
         accountHolderName: data.account_holder_name,
         ibanAccountNumber: data.iban_account_number,
@@ -325,13 +322,18 @@ export const submitApplication = createServerFn({ method: "POST" })
 
       documentMeta.push({
         key: "contract_narrative",
-        filename: "Projet de contrat — version narrative.pdf",
+        filename: "Virelia — narrative contract.pdf",
         path: narrativePath,
       });
 
       const { error: updateError } = await client
         .from("applications")
-        .update({ documents: documentMeta, contract_path: structuredPath })
+        .update({
+          documents: documentMeta,
+          contract_path: structuredPath,
+          locale: applicationLocale,
+          language: applicationLocale,
+        })
         .eq("id", applicationId);
       if (updateError) {
         safeLog("application_finalize", updateError, { applicationId });
@@ -347,10 +349,11 @@ export const submitApplication = createServerFn({ method: "POST" })
     console.info("[Virelia submission] completed", {
       applicationId,
       referencePrefix: reference.slice(0, 9),
+      locale: applicationLocale,
       documents: data.files.length,
       contracts: 2,
     });
-    return { reference, status: "nouvelle_demande" as const };
+    return { reference, status: "nouvelle_demande" as const, locale: applicationLocale };
   });
 
 const contractDownloadSchema = z.object({

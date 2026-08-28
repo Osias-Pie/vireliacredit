@@ -6,24 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useI18n } from "@/lib/i18n/context";
-import type { TranslationKey } from "@/lib/i18n/translations";
 import { getApplicationTracking, type TrackingResult } from "@/lib/tracking.functions";
 import { getApplicationContractDownloads } from "@/lib/applications.functions";
-import { TRACKING_STAGES, trackingStageIndex, isKnownStatus, STATUS_LABEL_FR } from "@/lib/status";
+import { TRACKING_STAGES, trackingStageIndex, isKnownStatus } from "@/lib/status";
 import { useAssistantContext } from "@/components/assistant/VireliaAssistant";
 import { formatMoney } from "@/config/loans";
 
 const TRACKING_PREFILL_KEY = "virelia.tracking.prefill";
-
-const PROGRAM_LABELS: Record<string, string> = {
-  personal: "Prêt personnel",
-  professional: "Prêt professionnel",
-  business: "Prêt entreprise",
-  housing: "Prêt travaux et habitat",
-  studies: "Prêt études",
-  project: "Prêt projet",
-  retired: "Prêt retraité",
-};
 
 type DownloadLinks = {
   structuredUrl: string | null;
@@ -32,7 +21,6 @@ type DownloadLinks = {
 };
 
 export const Route = createFileRoute("/suivi")({
-  head: () => ({ meta: [{ title: "Suivre ma demande — Virelia Crédit" }] }),
   component: TrackingPage,
 });
 
@@ -113,12 +101,12 @@ function TrackingPage() {
         data: { reference: file.reference, email: email.trim() },
       });
       if (!result || (!result.structuredUrl && !result.narrativeUrl)) {
-        setContractError("Les contrats ne sont pas disponibles pour ce dossier.");
+        setContractError(t("track.contracts.unavailable"));
         return;
       }
       setContractLinks(result);
     } catch {
-      setContractError("Impossible de préparer les téléchargements actuellement.");
+      setContractError(t("track.contracts.prepare_error"));
     } finally {
       setContractLoading(false);
     }
@@ -145,23 +133,23 @@ function TrackingPage() {
       await downloadSigned(
         url,
         kind === "structured"
-          ? `Virelia-${file.reference}-structure.pdf`
-          : `Virelia-${file.reference}-narratif.pdf`,
+          ? `Virelia-${file.reference}-structured.pdf`
+          : `Virelia-${file.reference}-narrative.pdf`,
       );
     } catch {
       setContractLinks(null);
-      setContractError("Le lien temporaire a expiré. Préparez de nouveau les téléchargements.");
+      setContractError(t("track.contracts.expired"));
     }
   }
 
   async function downloadBoth() {
     if (!file || !contractLinks?.structuredUrl || !contractLinks.narrativeUrl) return;
     try {
-      await downloadSigned(contractLinks.structuredUrl, `Virelia-${file.reference}-structure.pdf`);
-      await downloadSigned(contractLinks.narrativeUrl, `Virelia-${file.reference}-narratif.pdf`);
+      await downloadSigned(contractLinks.structuredUrl, `Virelia-${file.reference}-structured.pdf`);
+      await downloadSigned(contractLinks.narrativeUrl, `Virelia-${file.reference}-narrative.pdf`);
     } catch {
       setContractLinks(null);
-      setContractError("Un des liens temporaires a expiré. Préparez de nouveau les téléchargements.");
+      setContractError(t("track.contracts.one_expired"));
     }
   }
 
@@ -190,12 +178,12 @@ function TrackingPage() {
                 placeholder="VIR-2026-XXXXXX"
                 autoComplete="off"
               />
-              <p className="mt-1.5 text-xs text-muted-foreground">Votre référence commence généralement par <strong>VIR-</strong> et a été affichée après l’envoi de votre demande.</p>
+              <p className="mt-1.5 text-xs text-muted-foreground">{t("track.reference_hint")}</p>
             </div>
             <div>
               <Label>{t("track.email")}</Label>
               <Input className="mt-1.5" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
-              <p className="mt-1.5 text-xs text-muted-foreground">Utilisez exactement l’adresse e-mail renseignée lors de votre demande.</p>
+              <p className="mt-1.5 text-xs text-muted-foreground">{t("track.email_hint")}</p>
             </div>
             <Button type="submit" className="rounded-full" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -203,26 +191,26 @@ function TrackingPage() {
             </Button>
             {error && (
               <div className="rounded-xl border border-gold/35 bg-gold/10 p-4 text-sm">
-                <p className="font-medium text-foreground">Nous n’avons pas trouvé de dossier correspondant aux informations renseignées.</p>
-                <p className="mt-1 text-muted-foreground">Vérifiez votre référence et l’adresse e-mail utilisée lors de votre demande. Votre référence commence généralement par <strong>VIR-</strong>.</p>
+                <p className="font-medium text-foreground">{t("track.not_found.title")}</p>
+                <p className="mt-1 text-muted-foreground">{t("track.not_found.text")}</p>
               </div>
             )}
           </form>
 
           <div className="mx-auto mt-4 flex max-w-2xl items-start gap-2 rounded-xl bg-muted/45 p-3 text-xs leading-5 text-muted-foreground">
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
-            La combinaison référence + e-mail protège l’accès au dossier. Virelia ne demande jamais votre IBAN sur cette page.
+            {t("track.security")}
           </div>
 
           {file && (
             <div className="mx-auto mt-8 max-w-2xl space-y-6">
               <div className="surface-card grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
                 <InfoLine label={t("track.reference")} value={file.reference} />
-                <InfoLine label={t("field.loan_type")} value={PROGRAM_LABELS[file.program] ?? file.program} />
+                <InfoLine label={t("field.loan_type")} value={t(`product.${file.program}.title`)} />
                 <InfoLine label={t("field.amount")} value={formatMoney(Number(file.amount) || 0, file.currency, locale)} />
                 <InfoLine label={t("field.currency")} value={file.currency} />
                 <InfoLine label={t("track.requested_on")} value={new Date(file.created_at).toLocaleDateString(locale)} />
-                <InfoLine label={t("track.current_status")} value={isKnownStatus(file.status) ? STATUS_LABEL_FR[file.status] : file.status} />
+                <InfoLine label={t("track.current_status")} value={isKnownStatus(file.status) ? t(`application_status.${file.status}`) : file.status} />
               </div>
 
               <div className="surface-card p-5 sm:p-6">
@@ -236,7 +224,7 @@ function TrackingPage() {
                         <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full border ${current ? "border-gold bg-primary text-primary-foreground" : done ? "border-gold/40 bg-gold/10 text-foreground" : "border-border text-muted-foreground"}`}>
                           {done ? "✓" : i + 1}
                         </span>
-                        <span className={current ? "font-semibold text-foreground" : "text-muted-foreground"}>{t(stage.labelKey as TranslationKey)}</span>
+                        <span className={current ? "font-semibold text-foreground" : "text-muted-foreground"}>{t(stage.labelKey)}</span>
                       </li>
                     );
                   })}
@@ -247,7 +235,7 @@ function TrackingPage() {
                 <h2 className="text-lg font-semibold">{t("track.messages")}</h2>
                 {file.missing_public_requirements && (
                   <div className="mt-4 rounded-xl border border-gold/35 bg-gold/10 p-4 text-sm">
-                    <p className="font-semibold">Éléments à compléter</p>
+                    <p className="font-semibold">{t("track.requirements")}</p>
                     <p className="mt-1 text-muted-foreground">{file.missing_public_requirements}</p>
                   </div>
                 )}
@@ -269,25 +257,25 @@ function TrackingPage() {
                 <div className="flex items-start gap-3">
                   <Files className="mt-0.5 h-5 w-5 text-gold" />
                   <div>
-                    <h2 className="text-lg font-semibold">Mes projets de contrat</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">Les liens sont privés et temporaires.</p>
+                    <h2 className="text-lg font-semibold">{t("track.contracts.title")}</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">{t("track.contracts.private")}</p>
                   </div>
                 </div>
                 {!contractLinks ? (
                   <Button type="button" className="mt-5 rounded-full" onClick={() => void prepareContracts()} disabled={contractLoading}>
                     {contractLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Préparer les téléchargements
+                    {t("track.contracts.prepare")}
                   </Button>
                 ) : (
                   <div className="mt-5 grid gap-3 sm:grid-cols-3">
                     <Button variant="outline" className="border-gold/40" onClick={() => void downloadContract("structured")} disabled={!contractLinks.structuredUrl}>
-                      <Download className="mr-2 h-4 w-4" /> Structuré
+                      <Download className="mr-2 h-4 w-4" /> {t("track.contracts.structured")}
                     </Button>
                     <Button variant="outline" className="border-gold/40" onClick={() => void downloadContract("narrative")} disabled={!contractLinks.narrativeUrl}>
-                      <Download className="mr-2 h-4 w-4" /> Narratif
+                      <Download className="mr-2 h-4 w-4" /> {t("track.contracts.narrative")}
                     </Button>
                     <Button onClick={() => void downloadBoth()} disabled={!contractLinks.structuredUrl || !contractLinks.narrativeUrl}>
-                      <Files className="mr-2 h-4 w-4" /> Les deux
+                      <Files className="mr-2 h-4 w-4" /> {t("track.contracts.both")}
                     </Button>
                   </div>
                 )}

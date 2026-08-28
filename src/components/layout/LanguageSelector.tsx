@@ -6,7 +6,7 @@ import {
 import { useI18n } from "@/lib/i18n/context";
 
 export function LanguageSelector() {
-  const { locale, setLocale, locales } = useI18n();
+  const { locale, setLocale, locales, t } = useI18n();
   const current = locales.find((l) => l.code === locale) ?? locales[0];
   return (
     <DropdownMenu>
@@ -15,7 +15,7 @@ export function LanguageSelector() {
           variant="ghost"
           size="sm"
           className="h-9 gap-1.5 rounded-full px-3 text-sm font-medium"
-          aria-label="Language"
+          aria-label={t("ui.language")}
         >
           <Globe className="h-4 w-4" aria-hidden />
           <span className="hidden sm:inline">{current.flag}</span>

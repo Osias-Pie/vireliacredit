@@ -6,27 +6,27 @@ import {
   containsSensitiveBankData,
   type AssistantKnowledgeContext,
 } from "@/lib/assistant-knowledge";
+import { normalizeLocale } from "@/lib/i18n/locale-core";
 
-const SYSTEM = `Tu es l'Assistant Virelia, l'assistant officiel du site Virelia Crédit.
-Tu expliques, guides et simplifies. Tu aides à comprendre Virelia Crédit, les solutions de prêt remboursable, l'éligibilité, le formulaire, les documents, les frais configurés, le projet de contrat, la référence VIR et le suivi de dossier.
+const SYSTEM = `You are Virelia Assistant, the official assistant for Virelia Credit.
+You explain, guide and simplify the repayable-loan journey: eligibility, application form, documents, configured fees, draft agreements, VIR reference and application tracking.
 
-Interdictions strictes :
-- n'accepte jamais un prêt
-- ne refuse jamais un prêt
-- ne calcule jamais une solvabilité définitive
-- ne décide jamais du taux, du montant accordé ni de conditions financières non configurées
-- ne remplace jamais un administrateur
-- ne demande jamais et n'invente jamais d'IBAN, SWIFT/BIC, numéro de compte, document d'identité, document privé ou note interne
-- n'aide jamais à contourner la vérification référence + e-mail du suivi
-- si une donnée n'est pas disponible dans le contexte ou la base de connaissances, indique-le clairement
-- ne présente jamais une demande comme déjà acceptée sauf si son statut public réel le dit explicitement
+Strict rules:
+- never accept or reject a loan
+- never make a final solvency decision
+- never invent a rate, granted amount or financial condition
+- never replace an administrator
+- never request or invent IBAN, SWIFT/BIC, account numbers, identity documents, private documents or internal notes
+- never help bypass reference + email tracking verification
+- if information is unavailable, say so clearly
+- never present an application as accepted unless its real public status says so
+- eligibility is orientation only, never a lending decision
+- a draft agreement remains subject to application approval
+- the VIR reference must be kept with the email address used for the application
 
-Le test d'éligibilité est une orientation, jamais une décision d'octroi.
-Le projet de contrat reste soumis à validation du dossier.
-La référence VIR est affichée après l'enregistrement réussi de la demande et doit être conservée avec l'adresse e-mail utilisée.
-Réponds dans la langue de l'utilisateur, de façon concise, claire et utile.
+The application always supplies an ACTIVE LOCALE. Reply exclusively in that active language, even if the user's latest message is written in another language, unless the user explicitly asks for a translation.
 
-BASE DE CONNAISSANCES VIRELIA :
+VIRELIA KNOWLEDGE:
 ${VIRELIA_ASSISTANT_KNOWLEDGE}`;
 
 const contextSchema = z
@@ -54,10 +54,9 @@ export const chatWithAssistant = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const ctx = (data.context ?? {}) as AssistantKnowledgeContext;
-    const locale = data.locale || "fr";
-    const fallback = () => answerFromVireliaKnowledge(data.message, ctx, locale);
+    const activeLocale = normalizeLocale(data.locale) ?? "fr";
+    const fallback = () => answerFromVireliaKnowledge(data.message, ctx, activeLocale);
 
-    // Bank/account values must never leave Virelia for an external AI provider.
     if (containsSensitiveBankData(data.message)) return { reply: fallback(), source: "local" as const };
 
     const apiKey = process.env.OPENAI_API_KEY;
@@ -91,7 +90,7 @@ export const chatWithAssistant = createServerFn({ method: "POST" })
             { role: "system", content: SYSTEM },
             {
               role: "system",
-              content: `Contexte autorisé du parcours (aucune donnée bancaire ou document privé) : ${JSON.stringify(safeContext)}`,
+              content: `ACTIVE LOCALE: ${activeLocale}. Reply exclusively in this language. Allowed journey context (no bank data or private documents): ${JSON.stringify(safeContext)}`,
             },
             { role: "user", content: data.message },
           ],

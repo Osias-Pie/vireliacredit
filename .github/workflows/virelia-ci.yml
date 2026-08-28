@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - chatgpt/virelia-finalisation
+      - feat/virelia-final-additions
   pull_request:
     branches:
       - main
@@ -25,4 +26,6 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Locale smoke tests
+        run: node --experimental-strip-types scripts/locale-smoke.ts
       - run: npm run build

@@ -18,7 +18,7 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="text-sm font-semibold text-foreground">Navigation</h4>
+            <h4 className="text-sm font-semibold text-foreground">{t("ui.footer.navigation")}</h4>
             <ul className="mt-4 space-y-2.5 text-sm text-muted-foreground">
               <li><Link to="/programs" className="hover:text-primary">{t("nav.solutions")}</Link></li>
               <li><Link to="/eligibility" className="hover:text-primary">{t("nav.eligibility")}</Link></li>
@@ -30,7 +30,7 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="text-sm font-semibold text-foreground">Contact</h4>
+            <h4 className="text-sm font-semibold text-foreground">{t("ui.footer.contact")}</h4>
             <ul className="mt-4 space-y-3 text-sm text-muted-foreground">
               <li className="flex items-start gap-2.5">
                 <Mail className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
@@ -48,7 +48,7 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="text-sm font-semibold text-foreground">Légal</h4>
+            <h4 className="text-sm font-semibold text-foreground">{t("ui.footer.legal")}</h4>
             <ul className="mt-4 space-y-2.5 text-sm text-muted-foreground">
               <li><Link to="/legal" className="hover:text-primary">{t("footer.legal")}</Link></li>
               <li><Link to="/privacy" className="hover:text-primary">{t("footer.privacy")}</Link></li>

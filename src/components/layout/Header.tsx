@@ -57,7 +57,7 @@ export function Header() {
 
         <nav
           className="hidden min-w-0 flex-1 items-center justify-center gap-0.5 lg:flex"
-          aria-label="Navigation principale"
+          aria-label={t("ui.nav.primary")}
         >
           {primaryLinks.map((l) => (
             <Link
@@ -78,7 +78,7 @@ export function Header() {
                 size="sm"
                 className="h-9 rounded-full px-2.5 text-[13px] font-medium text-muted-foreground xl:px-3"
               >
-                Plus <ChevronDown className="ml-1 h-3.5 w-3.5" />
+                {t("ui.nav.more")} <ChevronDown className="ml-1 h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
@@ -90,7 +90,7 @@ export function Header() {
                 </DropdownMenuItem>
               ))}
               <DropdownMenuItem className="flex items-center justify-between gap-3 focus:bg-transparent">
-                <span className="text-xs text-muted-foreground">Thème</span>
+                <span className="text-xs text-muted-foreground">{t("ui.theme")}</span>
                 <ThemeToggle />
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -109,7 +109,7 @@ export function Header() {
             size="icon"
             className="lg:hidden"
             onClick={() => setOpen((o) => !o)}
-            aria-label="Menu"
+            aria-label={t("ui.menu")}
             aria-expanded={open}
           >
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}

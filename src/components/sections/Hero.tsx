@@ -37,7 +37,7 @@ export function Hero() {
           >
             <span className="h-px w-10 bg-[#D4AF37]" />
             <span className="text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-white/88">
-              Solutions de financement
+              {t("ui.hero.eyebrow")}
             </span>
           </motion.div>
 
@@ -89,15 +89,15 @@ export function Hero() {
           >
             <li className="flex items-center gap-2">
               <SearchCheck className="h-4 w-4 shrink-0 text-[#D4AF37]" />
-              Éligibilité en quelques questions
+              {t("ui.hero.eligibility")}
             </li>
             <li className="flex items-center gap-2">
               <FileCheck2 className="h-4 w-4 shrink-0 text-[#D4AF37]" />
-              Demande structurée en ligne
+              {t("ui.hero.application")}
             </li>
             <li className="flex items-center gap-2">
               <Lock className="h-4 w-4 shrink-0 text-[#D4AF37]" />
-              Suivi privé par référence
+              {t("ui.hero.tracking")}
             </li>
           </motion.ul>
 

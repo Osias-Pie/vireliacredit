@@ -35,9 +35,9 @@ export function ProgramsSection({ compact = false }: ProgramsProps) {
               <div className="mb-6 flex h-13 w-13 items-center justify-center rounded-2xl border border-gold/35 bg-primary text-primary-foreground shadow-[var(--shadow-soft)]">
                 <Icon className="h-6 w-6" strokeWidth={2.1} />
               </div>
-              <span className="text-xs font-semibold uppercase tracking-wider text-gold">{p.audience}</span>
-              <h3 className="mt-2 text-xl font-semibold tracking-tight">{p.title}</h3>
-              <p className="mt-3 flex-1 text-sm leading-7 text-muted-foreground">{p.description}</p>
+              <span className="text-xs font-semibold uppercase tracking-wider text-gold">{t(p.audienceKey)}</span>
+              <h3 className="mt-2 text-xl font-semibold tracking-tight">{t(p.titleKey)}</h3>
+              <p className="mt-3 flex-1 text-sm leading-7 text-muted-foreground">{t(p.descKey)}</p>
               <Button asChild variant="ghost" className="mt-6 w-fit gap-1.5 px-0 text-primary hover:bg-transparent hover:text-gold">
                 <Link to="/apply" search={{ program: p.slug }}>
                   {t("solutions.apply")}
