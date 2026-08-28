@@ -8,7 +8,6 @@ import {
   normalizeLocale,
   resolveInitialLocale,
 } from "./locale-core";
-import { detectInitialLocale } from "./locale.functions";
 
 interface I18nContextValue {
   /** Single source of truth for the whole user journey. */
@@ -17,6 +16,12 @@ interface I18nContextValue {
   setLocale: (l: Locale) => void;
   t: (key: string, vars?: Record<string, string | number>) => string;
   locales: typeof LOCALES;
+}
+
+interface LocaleDetectionResponse {
+  locale?: string;
+  country?: string | null;
+  source?: "country" | "browser" | "fallback";
 }
 
 const I18nContext = createContext<I18nContextValue | null>(null);
@@ -33,6 +38,17 @@ function getStoredManualLocale(): Locale | null {
 function getStoredDetectedLocale(): Locale | null {
   if (typeof window === "undefined") return null;
   return normalizeLocale(window.localStorage.getItem(DETECTED_LOCALE_STORAGE_KEY)) as Locale | null;
+}
+
+async function detectInitialLocaleFromRequest(): Promise<LocaleDetectionResponse> {
+  const response = await fetch("/api/locale", {
+    method: "GET",
+    credentials: "same-origin",
+    cache: "no-store",
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) throw new Error(`locale_detection_http_${response.status}`);
+  return response.json() as Promise<LocaleDetectionResponse>;
 }
 
 export function I18nProvider({ children }: { children: ReactNode }) {
@@ -59,7 +75,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       };
     }
 
-    void detectInitialLocale()
+    void detectInitialLocaleFromRequest()
       .then((result) => {
         if (cancelled || getStoredManualLocale()) return;
         const next = isSupportedLocale(result.locale) ? (result.locale as Locale) : "fr";

@@ -20,9 +20,35 @@ function AuthPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/admin" });
-    });
+    let cancelled = false;
+
+    const restoreSession = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error("[Virelia runtime]", {
+            stage: "ADMIN_AUTH",
+            reason: "auth_page_session_read_failed",
+            message: error.message?.slice(0, 240),
+          });
+          return;
+        }
+        if (!cancelled && data.session) navigate({ to: "/admin" });
+      } catch (error) {
+        // Keep the login form usable instead of sending configuration/runtime issues
+        // to the global error boundary.
+        console.error("[Virelia runtime]", {
+          stage: "ADMIN_AUTH",
+          reason: "auth_page_session_unavailable",
+          message: error instanceof Error ? error.message.slice(0, 240) : "unknown",
+        });
+      }
+    };
+
+    void restoreSession();
+    return () => {
+      cancelled = true;
+    };
   }, [navigate]);
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -30,8 +56,9 @@ function AuthPage() {
     setBusy(true);
     try {
       if (mode === "signin") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        if (!data.session) throw new Error("La session administrateur n’a pas pu être créée.");
         toast.success("Connexion réussie");
         navigate({ to: "/admin" });
       } else {
@@ -45,6 +72,11 @@ function AuthPage() {
         setMode("signin");
       }
     } catch (err: any) {
+      console.error("[Virelia runtime]", {
+        stage: "ADMIN_AUTH",
+        reason: "sign_in_failed",
+        message: typeof err?.message === "string" ? err.message.slice(0, 240) : "unknown",
+      });
       toast.error(err?.message ?? "Erreur d'authentification");
     } finally {
       setBusy(false);

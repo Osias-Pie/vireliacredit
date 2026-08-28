@@ -16,6 +16,7 @@ import { CurrencyProvider } from "@/lib/currency/context";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/lib/theme/context";
 import { AssistantProvider, VireliaAssistant } from "@/components/assistant/VireliaAssistant";
+import { MobileContractPdfFallback } from "@/components/runtime/MobileContractPdfFallback";
 
 function NotFoundComponent() {
   return (
@@ -117,6 +118,7 @@ function RootComponent() {
             <AssistantProvider>
               <Outlet />
               <VireliaAssistant />
+              <MobileContractPdfFallback />
               <Toaster />
             </AssistantProvider>
           </CurrencyProvider>

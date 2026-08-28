@@ -35,10 +35,13 @@ async function assertAdmin(context: { supabase: any; userId: string }) {
     _role: "admin",
   });
   if (error) {
-    adminLog("role_check", error);
+    adminLog("ADMIN_ROLE", error, { reason: "role_check_failed" });
     throw new Error("role_check_failed");
   }
-  if (!data) throw new Error("forbidden");
+  if (!data) {
+    adminLog("ADMIN_ROLE", new Error("forbidden"), { reason: "role_missing" });
+    throw new Error("forbidden");
+  }
 }
 
 function isOpaqueSupabaseKey(value: string) {
@@ -63,7 +66,13 @@ async function serverAdminClient() {
   const { createClient } = await import("@supabase/supabase-js");
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const secret = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
-  if (!url || !secret) throw new Error("server_configuration_missing");
+  if (!url || !secret) {
+    adminLog("SUPABASE_SERVER_CONFIG", new Error("server_configuration_missing"), {
+      missingUrl: !url,
+      missingSecret: !secret,
+    });
+    throw new Error("server_configuration_missing");
+  }
   return createClient(url, secret, {
     global: { fetch: secretFetch(secret) },
     auth: { persistSession: false, autoRefreshToken: false, storage: undefined },
@@ -171,7 +180,7 @@ export const getCurrentAdmin = createServerFn({ method: "GET" })
       _role: "admin",
     });
     if (error) {
-      adminLog("current_admin_role", error);
+      adminLog("ADMIN_ROLE", error, { reason: "current_admin_role_check_failed" });
       return { userId: context.userId, isAdmin: false, degraded: true };
     }
     return { userId: context.userId, isAdmin: !!data, degraded: false };
@@ -186,7 +195,7 @@ export const listApplications = createServerFn({ method: "GET" })
       .select("*")
       .order("created_at", { ascending: false });
     if (error) {
-      adminLog("list_applications", error);
+      adminLog("ADMIN_APPLICATION_QUERY", error, { operation: "list" });
       throw new Error("applications_unavailable");
     }
     return data ?? [];
@@ -202,7 +211,10 @@ export const getApplicationAdminDetail = createServerFn({ method: "POST" })
       .select("*")
       .eq("id", data.id)
       .maybeSingle();
-    if (error) throw new Error("application_detail_unavailable");
+    if (error) {
+      adminLog("ADMIN_APPLICATION_QUERY", error, { operation: "detail", applicationId: data.id });
+      throw new Error("application_detail_unavailable");
+    }
     if (!app) throw new Error("not_found");
 
     const [bankResult, historyResult] = await Promise.all([
@@ -218,8 +230,8 @@ export const getApplicationAdminDetail = createServerFn({ method: "POST" })
         .order("created_at", { ascending: true }),
     ]);
 
-    if (bankResult.error) adminLog("detail_bank_degraded", bankResult.error, { applicationId: data.id });
-    if (historyResult.error) adminLog("detail_history_degraded", historyResult.error, { applicationId: data.id });
+    if (bankResult.error) adminLog("ADMIN_APPLICATION_QUERY", bankResult.error, { operation: "detail_bank", applicationId: data.id });
+    if (historyResult.error) adminLog("ADMIN_APPLICATION_QUERY", historyResult.error, { operation: "detail_history", applicationId: data.id });
 
     return {
       application: app,
@@ -256,7 +268,7 @@ export const updateApplicationStatus = createServerFn({ method: "POST" })
 
     const { error } = await context.supabase.from("applications").update(patch).eq("id", data.id);
     if (error) {
-      adminLog("status_update", error, { applicationId: data.id, status: data.status });
+      adminLog("ADMIN_APPLICATION_QUERY", error, { operation: "status_update", applicationId: data.id, status: data.status });
       throw new Error("status_update_failed");
     }
 
@@ -265,7 +277,7 @@ export const updateApplicationStatus = createServerFn({ method: "POST" })
       await regenerateContractsForStatus(data.id, data.status);
     } catch (contractError) {
       contractRefresh = false;
-      adminLog("contract_refresh", contractError, { applicationId: data.id, status: data.status });
+      adminLog("ADMIN_APPLICATION_QUERY", contractError, { operation: "contract_refresh", applicationId: data.id, status: data.status });
     }
 
     return { ok: true, contractRefresh };
@@ -286,7 +298,10 @@ export const createAdminSignedUrl = createServerFn({ method: "POST" })
     const { data: signed, error } = await context.supabase.storage
       .from(data.bucket)
       .createSignedUrl(data.path, 60 * 15);
-    if (error || !signed?.signedUrl) throw new Error("sign_failed");
+    if (error || !signed?.signedUrl) {
+      adminLog("ADMIN_APPLICATION_QUERY", error ?? new Error("signed_url_missing"), { operation: "signed_url", bucket: data.bucket });
+      throw new Error("sign_failed");
+    }
     return { url: signed.signedUrl };
   });
 
@@ -296,6 +311,9 @@ export const deleteApplication = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     await assertAdmin(context);
     const { error } = await context.supabase.from("applications").delete().eq("id", data.id);
-    if (error) throw new Error(error.message);
+    if (error) {
+      adminLog("ADMIN_APPLICATION_QUERY", error, { operation: "delete", applicationId: data.id });
+      throw new Error(error.message);
+    }
     return { ok: true };
   });

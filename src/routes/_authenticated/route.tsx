@@ -5,9 +5,31 @@ import { supabase } from "@/integrations/supabase/client";
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async () => {
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) throw redirect({ to: "/auth" });
-    return { user: data.user };
+    let session = null;
+
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error("[Virelia runtime]", {
+          stage: "ADMIN_AUTH",
+          reason: "session_read_failed",
+          message: error.message?.slice(0, 240),
+        });
+      }
+      session = data.session;
+    } catch (error) {
+      console.error("[Virelia runtime]", {
+        stage: "ADMIN_AUTH",
+        reason: "client_session_unavailable",
+        message: error instanceof Error ? error.message.slice(0, 240) : "unknown",
+      });
+    }
+
+    // Never let an unauthenticated visit fall through to the global error boundary.
+    // A fresh/private browser should always land on the admin sign-in page.
+    if (!session?.user) throw redirect({ to: "/auth" });
+
+    return { user: session.user };
   },
   component: () => <Outlet />,
 });

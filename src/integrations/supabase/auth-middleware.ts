@@ -29,12 +29,24 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
   };
 }
 
+function runtimeLog(stage: 'ADMIN_AUTH' | 'SUPABASE_SERVER_CONFIG', reason: string, error?: unknown) {
+  console.error('[Virelia runtime]', {
+    stage,
+    reason,
+    message: error instanceof Error ? error.message.slice(0, 240) : undefined,
+  });
+}
+
 export const requireSupabaseAuth = createMiddleware({ type: 'function' })
   .client(async ({ next }) => {
     // Server functions do not inherit the Supabase session stored in localStorage.
     // Forward the user's access token explicitly so protected admin functions can authenticate.
     try {
-      const { data } = await supabase.auth.getSession();
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        runtimeLog('ADMIN_AUTH', 'client_session_read_failed', error);
+        return next();
+      }
       const token = data.session?.access_token;
       if (!token) return next();
       return next({
@@ -42,7 +54,8 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' })
           Authorization: `Bearer ${token}`,
         },
       });
-    } catch {
+    } catch (error) {
+      runtimeLog('ADMIN_AUTH', 'client_token_forward_failed', error);
       return next();
     }
   })
@@ -58,21 +71,25 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' })
           ? ['SUPABASE_PUBLISHABLE_KEY/VITE_SUPABASE_PUBLISHABLE_KEY']
           : []),
       ];
-      const message = `Missing Supabase environment variable(s): ${missing.join(', ')}`;
-      console.error(`[Supabase auth] ${message}`);
-      throw new Error(message);
+      runtimeLog('SUPABASE_SERVER_CONFIG', `missing:${missing.join(',')}`);
+      throw new Error('server_configuration_missing');
     }
 
     const request = getRequest();
-    if (!request?.headers) throw new Error('Unauthorized: No request headers available');
+    if (!request?.headers) {
+      runtimeLog('ADMIN_AUTH', 'request_headers_unavailable');
+      throw new Error('Unauthorized: No request headers available');
+    }
 
     const authHeader = request.headers.get('authorization');
     if (!authHeader?.startsWith('Bearer ')) {
+      runtimeLog('ADMIN_AUTH', 'missing_bearer_token');
       throw new Error('Unauthorized: Missing bearer token');
     }
 
     const token = authHeader.slice('Bearer '.length).trim();
     if (!token || token.split('.').length !== 3) {
+      runtimeLog('ADMIN_AUTH', 'invalid_bearer_token_shape');
       throw new Error('Unauthorized: Invalid token');
     }
 
@@ -89,7 +106,10 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' })
     });
 
     const { data, error } = await serverClient.auth.getClaims(token);
-    if (error || !data?.claims?.sub) throw new Error('Unauthorized: Invalid token');
+    if (error || !data?.claims?.sub) {
+      runtimeLog('ADMIN_AUTH', 'token_claims_rejected', error);
+      throw new Error('Unauthorized: Invalid token');
+    }
 
     return next({
       context: {
