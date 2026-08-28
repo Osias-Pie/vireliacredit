@@ -1,21 +1,33 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import {
+  VIRELIA_ASSISTANT_KNOWLEDGE,
+  answerFromVireliaKnowledge,
+  containsSensitiveBankData,
+  type AssistantKnowledgeContext,
+} from "@/lib/assistant-knowledge";
 
-const SYSTEM = `Tu es l'Assistant Virelia, un accompagnateur pour le site Virelia Crédit.
-Tu expliques, guides et simplifies. Tu aides à remplir le formulaire, à comprendre l'éligibilité, les documents, le projet de contrat et le suivi de dossier.
+const SYSTEM = `Tu es l'Assistant Virelia, l'assistant officiel du site Virelia Crédit.
+Tu expliques, guides et simplifies. Tu aides à comprendre Virelia Crédit, les solutions de prêt remboursable, l'éligibilité, le formulaire, les documents, les frais configurés, le projet de contrat, la référence VIR et le suivi de dossier.
 
 Interdictions strictes :
 - n'accepte jamais un prêt
 - ne refuse jamais un prêt
 - ne calcule jamais une solvabilité définitive
-- ne décide jamais du taux, du montant accordé ni des frais hors information déjà affichée
+- ne décide jamais du taux, du montant accordé ni de conditions financières non configurées
 - ne remplace jamais un administrateur
-- ne demande jamais et n'invente jamais d'IBAN, de SWIFT, de documents d'identité ou de notes internes
-- si le contexte ne contient pas une donnée, dis que tu ne l'as pas
-- ne présente jamais une demande comme déjà acceptée
+- ne demande jamais et n'invente jamais d'IBAN, SWIFT/BIC, numéro de compte, document d'identité, document privé ou note interne
+- n'aide jamais à contourner la vérification référence + e-mail du suivi
+- si une donnée n'est pas disponible dans le contexte ou la base de connaissances, indique-le clairement
+- ne présente jamais une demande comme déjà acceptée sauf si son statut public réel le dit explicitement
 
-Le test d'éligibilité oriente seulement. Le projet de contrat est soumis à validation du dossier.
-Réponds dans la langue de l'utilisateur, de façon courte et claire.`;
+Le test d'éligibilité est une orientation, jamais une décision d'octroi.
+Le projet de contrat reste soumis à validation du dossier.
+La référence VIR est affichée après l'enregistrement réussi de la demande et doit être conservée avec l'adresse e-mail utilisée.
+Réponds dans la langue de l'utilisateur, de façon concise, claire et utile.
+
+BASE DE CONNAISSANCES VIRELIA :
+${VIRELIA_ASSISTANT_KNOWLEDGE}`;
 
 const contextSchema = z
   .object({
@@ -30,39 +42,6 @@ const contextSchema = z
   })
   .default({});
 
-function localReply(
-  message: string,
-  ctx: z.infer<typeof contextSchema>,
-): string {
-  const missing = ctx.missingFields ?? [];
-  if (missing.length) {
-    return `Il vous reste à renseigner : ${missing.join(", ")} avant de continuer. Je ne peux pas valider un prêt à votre place ; je peux seulement vous indiquer les champs encore vides.`;
-  }
-  if (ctx.page === "tracking" && ctx.status) {
-    const extra = ctx.missing_public_requirements
-      ? ` Point d'attention communiqué : ${ctx.missing_public_requirements}`
-      : " Aucun document supplémentaire n'est indiqué pour le moment.";
-    const msgs = ctx.public_messages?.length
-      ? ` Messages de l'équipe : ${ctx.public_messages.join(" · ")}`
-      : "";
-    return `Votre dossier${ctx.reference ? ` ${ctx.reference}` : ""} est actuellement au statut « ${ctx.status} ».${extra}${msgs} L'équipe étudiera le dossier ; je ne peux ni l'accepter ni le refuser.`;
-  }
-  if (ctx.page === "eligibility") {
-    return "Le test d'éligibilité sert uniquement à orienter. Un résultat favorable ne garantit pas un prêt. Vous pouvez ensuite déposer une demande pour étude humaine.";
-  }
-  if (ctx.page === "application") {
-    return `Vous êtes à l'étape ${ctx.step ?? "en cours"} du formulaire. Complétez les champs demandés, déposez les documents, puis confirmez le projet de contrat. Aucune donnée bancaire ne m'est transmise.`;
-  }
-  if (ctx.page === "confirmation") {
-    return "Conservez votre référence VIR. Sur la page Suivre ma demande, indiquez la référence et l'e-mail utilisé. L'analyse est réalisée par l'équipe ; des justificatifs complémentaires peuvent être demandés.";
-  }
-  const lower = message.toLowerCase();
-  if (lower.includes("iban") || lower.includes("swift")) {
-    return "Je n'ai pas accès à vos coordonnées bancaires et je ne dois pas les traiter. Saisissez-les uniquement dans l'étape prévue du formulaire.";
-  }
-  return "Je peux vous expliquer les étapes (éligibilité, formulaire, documents, projet de contrat, suivi). Je ne peux pas accorder, refuser ou chiffrer un crédit à votre place.";
-}
-
 export const chatWithAssistant = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
     z
@@ -74,11 +53,17 @@ export const chatWithAssistant = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data }) => {
-    const ctx = data.context ?? {};
-    const apiKey = process.env["OPENAI_API_KEY"];
+    const ctx = (data.context ?? {}) as AssistantKnowledgeContext;
+    const locale = data.locale || "fr";
+    const fallback = () => answerFromVireliaKnowledge(data.message, ctx, locale);
 
+    // Bank/account values must never leave Virelia for an external AI provider.
+    if (containsSensitiveBankData(data.message)) return { reply: fallback(), source: "local" as const };
+
+    const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      return { reply: localReply(data.message, ctx) };
+      console.warn("[Virelia assistant] OPENAI_API_KEY missing; serving local knowledge fallback");
+      return { reply: fallback(), source: "local" as const };
     }
 
     const safeContext = {
@@ -100,26 +85,33 @@ export const chatWithAssistant = createServerFn({ method: "POST" })
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: process.env["OPENAI_MODEL"] || "gpt-4o-mini",
-          temperature: 0.3,
-          max_tokens: 400,
+          model: process.env.OPENAI_MODEL || "gpt-5-mini",
+          max_completion_tokens: 500,
           messages: [
             { role: "system", content: SYSTEM },
             {
               role: "system",
-              content: `Contexte autorisé (aucune donnée bancaire) : ${JSON.stringify(safeContext)}`,
+              content: `Contexte autorisé du parcours (aucune donnée bancaire ou document privé) : ${JSON.stringify(safeContext)}`,
             },
             { role: "user", content: data.message },
           ],
         }),
       });
-      if (!res.ok) return { reply: localReply(data.message, ctx) };
-      const json = (await res.json()) as {
-        choices?: { message?: { content?: string } }[];
-      };
+
+      if (!res.ok) {
+        console.warn(`[Virelia assistant] OpenAI request failed with HTTP ${res.status}; local fallback used`);
+        return { reply: fallback(), source: "local" as const };
+      }
+
+      const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
       const reply = json.choices?.[0]?.message?.content?.trim();
-      return { reply: reply || localReply(data.message, ctx) };
-    } catch {
-      return { reply: localReply(data.message, ctx) };
+      return reply
+        ? { reply, source: "openai" as const }
+        : { reply: fallback(), source: "local" as const };
+    } catch (error) {
+      console.warn(
+        `[Virelia assistant] provider unavailable (${error instanceof Error ? error.name : "unknown_error"}); local fallback used`,
+      );
+      return { reply: fallback(), source: "local" as const };
     }
   });

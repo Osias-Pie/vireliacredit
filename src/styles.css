@@ -41,90 +41,70 @@
   --color-surface: var(--surface);
   --color-surface-elevated: var(--surface-elevated);
 
-  --shadow-soft: 0 1px 2px 0 oklch(0.2 0.05 260 / 0.04), 0 4px 12px -4px oklch(0.2 0.05 260 / 0.08);
-  --shadow-elegant: 0 14px 44px -14px oklch(0.33 0.05 219 / 0.30);
-  --shadow-glow: 0 26px 72px -22px oklch(0.50 0.08 201 / 0.34);
-  --shadow-gold: 0 12px 36px -12px oklch(0.76 0.11 78 / 0.42);
+  --shadow-soft: 0 1px 2px rgb(11 42 91 / 0.05), 0 10px 28px -14px rgb(11 42 91 / 0.20);
+  --shadow-elegant: 0 22px 64px -26px rgb(11 42 91 / 0.34);
+  --shadow-glow: 0 24px 68px -28px rgb(212 175 55 / 0.30);
+  --shadow-gold: 0 14px 38px -18px rgb(212 175 55 / 0.38);
 }
 
-/* ------- LIGHT THEME (refined premium palette) ------- */
 :root {
-  --radius: 0.75rem;
+  --radius: 0.875rem;
 
-  /* Virelia brand — deep teal / petrol */
-  --primary: oklch(0.3292 0.0486 218.8);      /* #123B46 */
-  --primary-foreground: oklch(0.9678 0.0086 84.6);
-  --primary-light: oklch(0.4971 0.0750 201.1); /* #1E6F74 */
-  --primary-dark: oklch(0.2358 0.0255 222.6);  /* #102127 */
+  /* Official Virelia brand: blue #0B2A5B, gold #D4AF37, white #FFFFFF. */
+  --primary: #0B2A5B;
+  --primary-foreground: #FFFFFF;
+  --primary-light: color-mix(in srgb, #0B2A5B 82%, #FFFFFF);
+  --primary-dark: #0B2A5B;
+  --gold: #D4AF37;
+  --gold-foreground: #0B2A5B;
 
-  /* Gold stays an accent, never a surface */
-  --gold: oklch(0.7587 0.1060 77.6);          /* #D6A85F */
-  --gold-foreground: oklch(0.2358 0.0255 222.6);
-
-  --background: oklch(0.9678 0.0086 84.6);    /* #F7F4EE */
-  --foreground: oklch(0.2358 0.0255 222.6);   /* #102127 */
-
-  --surface: oklch(0.9302 0.0218 83.3);
-  --surface-elevated: oklch(1 0 0);
-
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.2358 0.0255 222.6);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.2358 0.0255 222.6);
-
-  --secondary: oklch(0.9302 0.0218 83.3);
-  --secondary-foreground: oklch(0.3292 0.0486 218.8);
-
-  --muted: oklch(0.945 0.014 84);
-  --muted-foreground: oklch(0.47 0.024 220);
-
-  --accent: oklch(0.9302 0.0218 83.3);
-  --accent-foreground: oklch(0.3292 0.0486 218.8);
-
-  --destructive: oklch(0.58 0.20 27);
-  --destructive-foreground: oklch(0.99 0 0);
-
-  --border: oklch(0.885 0.014 84);
-  --input: oklch(0.905 0.012 84);
-  --ring: oklch(0.4971 0.0750 201.1);
+  --background: #FFFFFF;
+  --foreground: #0B2A5B;
+  --surface: color-mix(in srgb, #0B2A5B 4%, #FFFFFF);
+  --surface-elevated: #FFFFFF;
+  --card: #FFFFFF;
+  --card-foreground: #0B2A5B;
+  --popover: #FFFFFF;
+  --popover-foreground: #0B2A5B;
+  --secondary: color-mix(in srgb, #0B2A5B 7%, #FFFFFF);
+  --secondary-foreground: #0B2A5B;
+  --muted: color-mix(in srgb, #0B2A5B 5%, #FFFFFF);
+  --muted-foreground: color-mix(in srgb, #0B2A5B 66%, #FFFFFF);
+  --accent: color-mix(in srgb, #D4AF37 16%, #FFFFFF);
+  --accent-foreground: #0B2A5B;
+  --destructive: #0B2A5B;
+  --destructive-foreground: #FFFFFF;
+  --border: color-mix(in srgb, #0B2A5B 15%, #FFFFFF);
+  --input: color-mix(in srgb, #0B2A5B 24%, #FFFFFF);
+  --ring: #D4AF37;
 }
 
-/* ------- DARK THEME ------- */
 .dark {
-  --primary: oklch(0.6600 0.0900 200);
-  --primary-foreground: oklch(0.16 0.02 220);
-  --primary-light: oklch(0.7700 0.0700 196);
-  --primary-dark: oklch(0.4971 0.0750 201.1);
-
-  --gold: oklch(0.7900 0.1100 78);
-  --gold-foreground: oklch(0.18 0.02 220);
-
-  --background: oklch(0.1900 0.0230 220);
-  --foreground: oklch(0.9550 0.0090 84);
-
-  --surface: oklch(0.2300 0.0270 220);
-  --surface-elevated: oklch(0.2650 0.0290 220);
-
-  --card: oklch(0.2500 0.0280 220);
-  --card-foreground: oklch(0.9550 0.0090 84);
-  --popover: oklch(0.2500 0.0280 220);
-  --popover-foreground: oklch(0.9550 0.0090 84);
-
-  --secondary: oklch(0.3000 0.0330 220);
-  --secondary-foreground: oklch(0.9550 0.0090 84);
-
-  --muted: oklch(0.2800 0.0300 220);
-  --muted-foreground: oklch(0.7400 0.0180 210);
-
-  --accent: oklch(0.3300 0.0420 210);
-  --accent-foreground: oklch(0.9550 0.0090 84);
-
-  --destructive: oklch(0.62 0.20 27);
-  --destructive-foreground: oklch(0.99 0 0);
-
-  --border: oklch(0.3350 0.0280 220);
-  --input: oklch(0.3150 0.0290 220);
-  --ring: oklch(0.6600 0.0900 200);
+  --primary: #D4AF37;
+  --primary-foreground: #0B2A5B;
+  --primary-light: color-mix(in srgb, #D4AF37 78%, #FFFFFF);
+  --primary-dark: #0B2A5B;
+  --gold: #D4AF37;
+  --gold-foreground: #0B2A5B;
+  --background: #0B2A5B;
+  --foreground: #FFFFFF;
+  --surface: color-mix(in srgb, #FFFFFF 6%, #0B2A5B);
+  --surface-elevated: color-mix(in srgb, #FFFFFF 9%, #0B2A5B);
+  --card: color-mix(in srgb, #FFFFFF 9%, #0B2A5B);
+  --card-foreground: #FFFFFF;
+  --popover: color-mix(in srgb, #FFFFFF 10%, #0B2A5B);
+  --popover-foreground: #FFFFFF;
+  --secondary: color-mix(in srgb, #FFFFFF 8%, #0B2A5B);
+  --secondary-foreground: #FFFFFF;
+  --muted: color-mix(in srgb, #FFFFFF 8%, #0B2A5B);
+  --muted-foreground: color-mix(in srgb, #FFFFFF 72%, #0B2A5B);
+  --accent: color-mix(in srgb, #D4AF37 16%, #0B2A5B);
+  --accent-foreground: #FFFFFF;
+  --destructive: #D4AF37;
+  --destructive-foreground: #0B2A5B;
+  --border: color-mix(in srgb, #FFFFFF 16%, #0B2A5B);
+  --input: color-mix(in srgb, #FFFFFF 24%, #0B2A5B);
+  --ring: #D4AF37;
 }
 
 @layer base {
@@ -137,10 +117,9 @@
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
-  h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.02em; }
+  h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.025em; }
 }
 
-/* Hide Lovable "Edit with Lovable" badge on all deployments */
 #lovable-badge,
 [id^="lovable-badge"],
 a[href*="lovable.dev"][target="_blank"],
@@ -156,7 +135,7 @@ a[href*="lovable.app"][target="_blank"][rel*="noopener"] {
 }
 
 @utility text-gradient-primary {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+  background: linear-gradient(135deg, #0B2A5B 0%, color-mix(in srgb, #0B2A5B 72%, #D4AF37) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -174,6 +153,6 @@ a[href*="lovable.app"][target="_blank"][rel*="noopener"] {
   &:hover {
     box-shadow: var(--shadow-elegant);
     transform: translateY(-2px);
-    border-color: color-mix(in oklch, var(--primary) 30%, var(--border));
+    border-color: color-mix(in srgb, #D4AF37 55%, var(--border));
   }
 }

@@ -1,147 +1,109 @@
 import { Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { ArrowRight, Lock, Globe2, FileCheck2 } from "lucide-react";
+import { ArrowRight, FileCheck2, Lock, SearchCheck } from "lucide-react";
 import { useI18n } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/button";
 import heroImage from "@/assets/hero-advisory.jpg";
 
-/**
- * Virelia hero — editorial split composition.
- * Left: deep petrol panel carrying the message. Right: the advisory photo.
- * The former full-bleed "coins & plant" background image is no longer used.
- */
 export function Hero() {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
 
   return (
-    <section className="relative isolate overflow-hidden bg-[var(--primary-dark)]">
-      <div className="grid lg:grid-cols-12">
-        {/* ---------------- Message panel ---------------- */}
-        <div className="relative z-10 lg:col-span-7">
-          {/* subtle gold wash */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 -z-10"
-            style={{
-              background:
-                "radial-gradient(70% 60% at 8% 12%, oklch(0.7587 0.106 77.6 / 0.14), transparent 68%)",
-            }}
-          />
-          <div className="mx-auto flex max-w-[46rem] flex-col justify-center px-5 py-20 sm:px-8 sm:py-24 lg:px-12 lg:py-32 xl:pl-[max(3rem,calc((100vw-80rem)/2+3rem))]">
-            <motion.div
-              initial={{ opacity: 0, x: -14 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5 }}
-              className="flex items-center gap-3"
+    <section className="relative isolate min-h-[680px] overflow-hidden bg-[#0B2A5B] sm:min-h-[720px] lg:min-h-[760px]">
+      <motion.img
+        src={heroImage}
+        alt=""
+        aria-hidden
+        initial={{ scale: 1.025 }}
+        animate={{ scale: 1 }}
+        transition={{ duration: 1.4, ease: "easeOut" }}
+        className="absolute inset-0 h-full w-full object-cover object-[64%_center] sm:object-[68%_center] lg:object-center"
+        width={1600}
+        height={1100}
+        fetchPriority="high"
+      />
+
+      <div aria-hidden className="absolute inset-0 bg-[linear-gradient(90deg,rgba(11,42,91,0.98)_0%,rgba(11,42,91,0.92)_38%,rgba(11,42,91,0.67)_64%,rgba(11,42,91,0.28)_100%)]" />
+      <div aria-hidden className="absolute inset-0 bg-[linear-gradient(0deg,rgba(11,42,91,0.58)_0%,transparent_48%,rgba(11,42,91,0.22)_100%)]" />
+      <div aria-hidden className="absolute -left-28 top-20 h-96 w-96 rounded-full bg-[#D4AF37]/14 blur-3xl" />
+
+      <div className="container-page relative z-10 flex min-h-[680px] items-center py-24 sm:min-h-[720px] lg:min-h-[760px] lg:py-28">
+        <div className="max-w-3xl">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45 }}
+            className="flex items-center gap-3"
+          >
+            <span className="h-px w-10 bg-[#D4AF37]" />
+            <span className="text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-white/88">
+              Solutions de financement
+            </span>
+          </motion.div>
+
+          <motion.h1
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.58, delay: 0.08 }}
+            className="mt-6 max-w-[16ch] font-display text-[clamp(2.7rem,6vw,5.7rem)] font-semibold leading-[0.98] tracking-[-0.05em] text-white"
+          >
+            {t("home.hero.title")}
+          </motion.h1>
+
+          <motion.p
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, delay: 0.16 }}
+            className="mt-7 max-w-[42rem] text-base leading-7 text-white/82 sm:text-lg sm:leading-8"
+          >
+            {t("home.hero.subtitle")}
+          </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.24 }}
+            className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center"
+          >
+            <Button asChild size="lg" className="group h-12 rounded-full bg-[#D4AF37] px-7 font-semibold text-[#0B2A5B] shadow-xl shadow-[#0B2A5B]/30 hover:bg-[#D4AF37]/90 hover:text-[#0B2A5B]">
+              <Link to="/eligibility">
+                {t("home.hero.cta_primary")}
+                <ArrowRight className="ml-1.5 h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              size="lg"
+              className="h-12 rounded-full border-white/35 bg-white/8 px-7 font-semibold text-white backdrop-blur-sm hover:bg-white/14 hover:text-white"
             >
-              <span className="h-px w-10 bg-[var(--gold)]" aria-hidden />
-              <span className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-[var(--gold)]">
-                {t("home.hero.eyebrow")}
-              </span>
-            </motion.div>
+              <Link to="/programs">{t("cta.discover")}</Link>
+            </Button>
+          </motion.div>
 
-            <motion.h1
-              initial={{ opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.08 }}
-              className="mt-6 max-w-[19ch] font-display font-semibold leading-[1.06] tracking-[-0.025em] text-white"
-              style={{ fontSize: "clamp(2rem, 4.6vw, 3.6rem)" }}
-            >
-              {t("home.hero.title")}
-            </motion.h1>
+          <motion.ul
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.36 }}
+            className="mt-12 grid max-w-2xl gap-3 border-t border-[#D4AF37]/30 pt-6 text-[0.82rem] text-white/76 sm:grid-cols-3"
+          >
+            <li className="flex items-center gap-2">
+              <SearchCheck className="h-4 w-4 shrink-0 text-[#D4AF37]" />
+              Éligibilité en quelques questions
+            </li>
+            <li className="flex items-center gap-2">
+              <FileCheck2 className="h-4 w-4 shrink-0 text-[#D4AF37]" />
+              Demande structurée en ligne
+            </li>
+            <li className="flex items-center gap-2">
+              <Lock className="h-4 w-4 shrink-0 text-[#D4AF37]" />
+              Suivi privé par référence
+            </li>
+          </motion.ul>
 
-            <motion.p
-              initial={{ opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.16 }}
-              className="mt-6 max-w-[46ch] text-base leading-relaxed text-white/75 sm:text-lg"
-            >
-              {t("home.hero.subtitle")}
-            </motion.p>
-
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.55, delay: 0.26 }}
-              className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center"
-            >
-              <Button
-                asChild
-                size="lg"
-                className="group h-12 rounded-sm bg-[var(--gold)] px-7 text-[0.95rem] font-semibold text-[var(--gold-foreground)] hover:bg-[var(--gold)]/90"
-              >
-                <Link to="/simulator">
-                  {t("home.hero.cta_primary")}
-                  <ArrowRight className="ml-1.5 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </Link>
-              </Button>
-              <Button
-                asChild
-                variant="outline"
-                size="lg"
-                className="h-12 rounded-sm border-white/25 bg-transparent px-7 text-[0.95rem] font-semibold text-white hover:bg-white/10 hover:text-white"
-              >
-                <Link to="/programs">{t("home.hero.cta_secondary")}</Link>
-              </Button>
-            </motion.div>
-
-            {/* trust strip — factual only, no certification claim */}
-            <motion.ul
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.7, delay: 0.4 }}
-              className="mt-12 grid gap-x-8 gap-y-3 border-t border-white/12 pt-6 text-[0.8rem] text-white/60 sm:grid-cols-3"
-            >
-              <li className="flex items-center gap-2">
-                <Globe2 className="h-4 w-4 shrink-0 text-[var(--gold)]" aria-hidden />
-                {t("home.hero.badge")}
-              </li>
-              <li className="flex items-center gap-2">
-                <FileCheck2 className="h-4 w-4 shrink-0 text-[var(--gold)]" aria-hidden />
-                {t("solutions.repayable")}
-              </li>
-              <li className="flex items-center gap-2">
-                <Lock className="h-4 w-4 shrink-0 text-[var(--gold)]" aria-hidden />
-                {t("transparency.item2.title")}
-              </li>
-            </motion.ul>
-
-            <p className="mt-6 max-w-[52ch] text-[0.72rem] leading-relaxed text-white/45">
-              {t("home.hero.legal")}
-            </p>
-          </div>
-        </div>
-
-        {/* ---------------- Image panel ---------------- */}
-        <div className="relative order-first min-h-[52vw] sm:min-h-[40vw] lg:order-last lg:col-span-5 lg:min-h-[unset]">
-          <img
-            src={heroImage}
-            alt={t("home.hero.eyebrow")}
-            className="absolute inset-0 h-full w-full object-cover object-center"
-            width={1280}
-            height={1600}
-            fetchPriority="high"
-          />
-          <div
-            aria-hidden
-            className="absolute inset-0"
-            style={{
-              background:
-                "linear-gradient(90deg, oklch(0.2358 0.0255 222.6 / 0.92) 0%, oklch(0.2358 0.0255 222.6 / 0.35) 32%, transparent 70%)",
-            }}
-          />
-          <div
-            aria-hidden
-            className="absolute inset-x-0 bottom-0 h-24 lg:hidden"
-            style={{
-              background:
-                "linear-gradient(0deg, oklch(0.2358 0.0255 222.6) 0%, transparent 100%)",
-            }}
-          />
-          <span
-            aria-hidden
-            className="absolute bottom-0 left-0 h-1 w-full bg-[var(--gold)] lg:left-auto lg:right-0 lg:top-0 lg:h-full lg:w-1"
-          />
+          <p className="mt-5 max-w-[58ch] text-[0.72rem] leading-relaxed text-white/52">
+            {t("home.hero.legal")}
+          </p>
         </div>
       </div>
     </section>

@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { translations, type Locale, type TranslationKey, LOCALES } from "./translations";
+import { FINAL_I18N_OVERRIDES } from "./final-overrides";
 
 interface I18nContextValue {
   locale: Locale;
@@ -9,7 +10,6 @@ interface I18nContextValue {
 }
 
 const I18nContext = createContext<I18nContextValue | null>(null);
-
 const STORAGE_KEY = "app.locale";
 
 function detectDefault(): Locale {
@@ -36,12 +36,20 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const value = useMemo<I18nContextValue>(() => {
     const dict = translations[locale] ?? translations.fr;
     const fallback = translations.fr;
+    const runtimeOverrides = FINAL_I18N_OVERRIDES[locale] ?? {};
+    const frenchOverrides = FINAL_I18N_OVERRIDES.fr ?? {};
     return {
       locale,
       setLocale,
       locales: LOCALES,
       t: (key, vars) => {
-        let str = (dict[key] ?? fallback[key] ?? key) as string;
+        let str = (
+          runtimeOverrides[key] ??
+          dict[key] ??
+          frenchOverrides[key] ??
+          fallback[key] ??
+          key
+        ) as string;
         if (vars) {
           for (const [k, v] of Object.entries(vars)) {
             str = str.replace(new RegExp(`\\{${k}\\}`, "g"), String(v));

@@ -30,13 +30,7 @@ const schema = z.object({
   address: z.string().trim().min(1).max(300),
   phone: z.string().trim().min(4).max(40),
   email: z.string().trim().email().max(200),
-  employment_status: z.enum([
-    "employee",
-    "self_employed",
-    "business_owner",
-    "retired",
-    "other",
-  ]),
+  employment_status: z.enum(["employee", "self_employed", "business_owner", "retired", "other"]),
   employment_details: z.record(z.string(), z.string().max(300)).default({}),
   income: num,
   other_income: num,
@@ -55,26 +49,61 @@ const schema = z.object({
   account_holder_name: z.string().trim().min(2).max(160),
   iban_account_number: z.string().trim().min(6).max(64),
   swift_bic: z.string().trim().max(20).optional().or(z.literal("")),
+  contract_layout: z.enum(["structured", "narrative"]).default("structured"),
   files: z.array(fileSchema).max(8).default([]),
   contract_confirmed: z.literal(true),
 });
 
 export type ApplicationInput = z.input<typeof schema>;
 
+const EMPLOYMENT_LABELS: Record<string, string> = {
+  employee: "Salarié",
+  self_employed: "Indépendant",
+  business_owner: "Chef d’entreprise",
+  retired: "Retraité",
+  other: "Autre situation",
+};
+
+function safeLog(stage: string, error?: unknown, extra: Record<string, unknown> = {}) {
+  const technical = error instanceof Error
+    ? { name: error.name, message: error.message.slice(0, 500) }
+    : error && typeof error === "object"
+      ? { code: String((error as { code?: unknown }).code ?? "unknown"), message: String((error as { message?: unknown }).message ?? "").slice(0, 500) }
+      : { message: String(error ?? "").slice(0, 500) };
+  // Never include submitted payloads, bank data, document contents, tokens or secrets here.
+  console.error("[Virelia submission]", { stage, ...technical, ...extra });
+}
+
+function isOpaqueSupabaseKey(value: string) {
+  return value.startsWith("sb_secret_") || value.startsWith("sb_publishable_");
+}
+
+function createServerFetch(apiKey: string): typeof fetch {
+  return (input, init) => {
+    const headers = new Headers(
+      typeof Request !== "undefined" && input instanceof Request ? input.headers : undefined,
+    );
+    if (init?.headers) new Headers(init.headers).forEach((value, key) => headers.set(key, value));
+    if (isOpaqueSupabaseKey(apiKey) && headers.get("Authorization") === `Bearer ${apiKey}`) {
+      headers.delete("Authorization");
+    }
+    headers.set("apikey", apiKey);
+    return fetch(input, { ...init, headers });
+  };
+}
+
 async function serverSupabase() {
   const { createClient } = await import("@supabase/supabase-js");
-  const url = process.env["SUPABASE_URL"];
-  const service = process.env["SUPABASE_SERVICE_ROLE_KEY"];
-  const pub = process.env["SUPABASE_PUBLISHABLE_KEY"];
-  if (!url) throw new Error("supabase_config_missing");
-  const key = service || pub;
-  if (!key) throw new Error("supabase_config_missing");
-  return {
-    client: createClient(url, key, {
-      auth: { persistSession: false, autoRefreshToken: false, storage: undefined },
-    }),
-    canStorage: Boolean(service),
-  };
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const service = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
+  if (!url || !service) {
+    safeLog("server_config", new Error("missing server Supabase URL or secret key"));
+    throw new Error("server_configuration_missing");
+  }
+  return createClient(url, service, {
+    global: { fetch: createServerFetch(service) },
+    auth: { persistSession: false, autoRefreshToken: false, storage: undefined },
+  });
 }
 
 function decodeBase64(data: string): Uint8Array {
@@ -82,11 +111,98 @@ function decodeBase64(data: string): Uint8Array {
   return Uint8Array.from(Buffer.from(clean, "base64"));
 }
 
+async function removeUploadedObjects(client: Awaited<ReturnType<typeof serverSupabase>>, applicationId: string) {
+  try {
+    const { data: docs } = await client.storage.from("application-documents").list(applicationId);
+    if (docs?.length) {
+      await client.storage.from("application-documents").remove(docs.map((file) => `${applicationId}/${file.name}`));
+    }
+    await client.storage.from("contracts").remove([`${applicationId}/contract-draft.pdf`]);
+  } catch (error) {
+    safeLog("cleanup", error, { applicationId });
+  }
+}
+
+async function resolveCreatedApplication(
+  client: Awaited<ReturnType<typeof serverSupabase>>,
+  created: unknown,
+): Promise<{ id: string; reference: string }> {
+  if (created && typeof created === "object") {
+    const obj = created as { id?: unknown; reference?: unknown };
+    if (typeof obj.id === "string" && typeof obj.reference === "string") {
+      return { id: obj.id, reference: obj.reference };
+    }
+  }
+
+  // Compatibility with the pre-2026-08-26 RPC which returned only VIR-YYYY-XXXXXX.
+  if (typeof created === "string" && created.startsWith("VIR-")) {
+    const { data, error } = await client
+      .from("applications")
+      .select("id, reference")
+      .eq("reference", created)
+      .maybeSingle();
+    if (error) {
+      safeLog("resolve_legacy_rpc", error, { referencePrefix: created.slice(0, 9) });
+      throw new Error("submission_schema_outdated");
+    }
+    if (data?.id && data.reference) return { id: data.id, reference: data.reference };
+  }
+
+  safeLog("rpc_response", new Error("submit_application returned an unsupported response shape"));
+  throw new Error("submission_rpc_invalid_response");
+}
+
+async function ensureBankDetails(
+  client: Awaited<ReturnType<typeof serverSupabase>>,
+  applicationId: string,
+  data: z.infer<typeof schema>,
+) {
+  const { error } = await client.from("application_bank_details").upsert(
+    {
+      application_id: applicationId,
+      bank_name: data.bank_name,
+      account_holder_name: data.account_holder_name,
+      iban_account_number: data.iban_account_number,
+      swift_bic: data.swift_bic || null,
+    },
+    { onConflict: "application_id" },
+  );
+  if (error) {
+    safeLog("bank_details", error, { applicationId });
+    throw new Error("bank_details_storage_failed");
+  }
+}
+
+async function ensureInitialHistory(
+  client: Awaited<ReturnType<typeof serverSupabase>>,
+  applicationId: string,
+) {
+  const { data, error } = await client
+    .from("application_status_history")
+    .select("id")
+    .eq("application_id", applicationId)
+    .limit(1);
+  if (error) {
+    safeLog("history_read", error, { applicationId });
+    throw new Error("status_history_unavailable");
+  }
+  if (data?.length) return;
+
+  const { error: insertError } = await client.from("application_status_history").insert({
+    application_id: applicationId,
+    status: "nouvelle_demande",
+    public_message: "Votre demande a bien été reçue. Notre équipe va l'examiner.",
+  });
+  if (insertError) {
+    safeLog("history_insert", insertError, { applicationId });
+    throw new Error("status_history_failed");
+  }
+}
+
 export const submitApplication = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => schema.parse(data))
   .handler(async ({ data }) => {
-    const { client, canStorage } = await serverSupabase();
-
+    const client = await serverSupabase();
     const fee =
       data.processing_fee ??
       getProcessingFee(data.program, data.processing_speed as ProcessingSpeed)?.amount ??
@@ -122,45 +238,36 @@ export const submitApplication = createServerFn({ method: "POST" })
       swift_bic: data.swift_bic ?? "",
     };
 
-    const { data: created, error } = await client.rpc("submit_application", {
-      p: payload,
-    });
-
-    if (error) {
-      console.error("[submitApplication] rpc error", error.message);
-      throw new Error("insert_failed");
+    const { data: created, error: rpcError } = await client.rpc("submit_application", { p: payload });
+    if (rpcError) {
+      safeLog("rpc_submit_application", rpcError, { program: data.program, currency: data.currency });
+      throw new Error("application_creation_failed");
     }
 
-    const result = created as { id?: string; reference?: string } | string | null;
-    const reference =
-      typeof result === "string" ? result : result?.reference;
-    const applicationId = typeof result === "object" && result ? result.id : null;
-
-    if (!reference) throw new Error("insert_failed");
-
+    const { id: applicationId, reference } = await resolveCreatedApplication(client, created);
     const documentMeta: { key: string; filename: string; path: string }[] = [];
 
-    if (canStorage && applicationId) {
+    try {
+      // Old RPC versions only created the application row. Upsert guarantees bank details after either RPC shape.
+      await ensureBankDetails(client, applicationId, data);
+      await ensureInitialHistory(client, applicationId);
+
       for (const file of data.files) {
-        const ext = file.filename.includes(".")
-          ? file.filename.slice(file.filename.lastIndexOf("."))
-          : "";
+        const ext = file.filename.includes(".") ? file.filename.slice(file.filename.lastIndexOf(".")) : "";
         const path = `${applicationId}/${file.key}${ext}`;
         const bytes = decodeBase64(file.contentBase64);
-        const { error: upErr } = await client.storage
+        const { error: uploadError } = await client.storage
           .from("application-documents")
-          .upload(path, bytes, {
-            contentType: file.mime || "application/octet-stream",
-            upsert: true,
-          });
-        if (upErr) {
-          console.error("[submitApplication] document upload failed");
-          continue;
+          .upload(path, bytes, { contentType: file.mime || "application/octet-stream", upsert: true });
+        if (uploadError) {
+          safeLog("document_upload", uploadError, { applicationId, documentKey: file.key });
+          throw new Error("document_upload_failed");
         }
         documentMeta.push({ key: file.key, filename: file.filename, path });
       }
 
-      const pdf = await generateLoanContractPdf({
+      const contractInput = {
+        reference,
         firstName: data.first_name,
         lastName: data.last_name,
         birthDate: data.birth_date,
@@ -168,35 +275,129 @@ export const submitApplication = createServerFn({ method: "POST" })
         address: data.address,
         phone: data.phone,
         email: data.email,
+        employmentLabel: EMPLOYMENT_LABELS[data.employment_status] ?? data.employment_status,
+        incomeLabel: data.income != null ? `${data.income} ${data.currency}` : "Non renseigné",
+        monthlyChargesLabel:
+          data.monthly_charges != null ? `${data.monthly_charges} ${data.currency}` : "Non renseigné",
         programLabel: data.program_label || data.program,
         purpose: data.purpose,
         amountLabel: `${data.amount} ${data.currency}`,
         currency: data.currency,
         durationMonths: String(data.duration_months),
         processingSpeedLabel: data.speed_label || data.processing_speed,
-        processingFeeLabel: fee != null ? `${fee} ${data.currency}` : "—",
+        processingFeeLabel: fee != null ? `${fee} ${data.currency}` : "Non applicable",
         bankName: data.bank_name,
         accountHolderName: data.account_holder_name,
         ibanAccountNumber: data.iban_account_number,
         swiftBic: data.swift_bic || "",
         confirmationDate: new Date().toISOString().slice(0, 10),
+        approved: false,
+      } as const;
+
+      let structuredPdf: Uint8Array;
+      let narrativePdf: Uint8Array;
+      try {
+        [structuredPdf, narrativePdf] = await Promise.all([
+          generateLoanContractPdf({ ...contractInput, layout: "structured" }),
+          generateLoanContractPdf({ ...contractInput, layout: "narrative" }),
+        ]);
+      } catch (error) {
+        safeLog("contract_generation", error, { applicationId });
+        throw new Error("contract_generation_failed");
+      }
+
+      const structuredPath = `${applicationId}/contract-draft.pdf`;
+      const narrativePath = `${applicationId}/contract-narrative.pdf`;
+      const [{ error: structuredError }, { error: narrativeError }] = await Promise.all([
+        client.storage.from("contracts").upload(structuredPath, structuredPdf, {
+          contentType: "application/pdf",
+          upsert: true,
+        }),
+        client.storage.from("application-documents").upload(narrativePath, narrativePdf, {
+          contentType: "application/pdf",
+          upsert: true,
+        }),
+      ]);
+      if (structuredError || narrativeError) {
+        safeLog("contract_upload", structuredError || narrativeError, { applicationId });
+        throw new Error("contract_upload_failed");
+      }
+
+      documentMeta.push({
+        key: "contract_narrative",
+        filename: "Projet de contrat — version narrative.pdf",
+        path: narrativePath,
       });
 
-      const contractPath = `${applicationId}/contract-draft.pdf`;
-      const { error: cErr } = await client.storage.from("contracts").upload(contractPath, pdf, {
-        contentType: "application/pdf",
-        upsert: true,
-      });
-      if (cErr) console.error("[submitApplication] contract upload failed");
-
-      await client
+      const { error: updateError } = await client
         .from("applications")
-        .update({
-          documents: documentMeta,
-          contract_path: cErr ? null : contractPath,
-        })
+        .update({ documents: documentMeta, contract_path: structuredPath })
         .eq("id", applicationId);
+      if (updateError) {
+        safeLog("application_finalize", updateError, { applicationId });
+        throw new Error("application_finalize_failed");
+      }
+    } catch (error) {
+      await removeUploadedObjects(client, applicationId);
+      const { error: deleteError } = await client.from("applications").delete().eq("id", applicationId);
+      if (deleteError) safeLog("rollback_application", deleteError, { applicationId });
+      throw error;
     }
 
+    console.info("[Virelia submission] completed", {
+      applicationId,
+      referencePrefix: reference.slice(0, 9),
+      documents: data.files.length,
+      contracts: 2,
+    });
     return { reference, status: "nouvelle_demande" as const };
+  });
+
+const contractDownloadSchema = z.object({
+  reference: z.string().trim().min(8).max(40),
+  email: z.string().trim().email().max(200),
+});
+
+export const getApplicationContractDownloads = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => contractDownloadSchema.parse(data))
+  .handler(async ({ data }) => {
+    const client = await serverSupabase();
+    const { data: app, error } = await client
+      .from("applications")
+      .select("id, reference, email, contract_path, documents")
+      .ilike("reference", data.reference)
+      .ilike("email", data.email)
+      .maybeSingle();
+
+    if (error) {
+      safeLog("contract_download_lookup", error);
+      throw new Error("contract_lookup_failed");
+    }
+    if (!app) return null;
+
+    const docs = Array.isArray(app.documents) ? app.documents : [];
+    const narrativePath = docs.find(
+      (item) => item && typeof item === "object" && (item as { key?: unknown }).key === "contract_narrative",
+    );
+    const narrative =
+      narrativePath && typeof narrativePath === "object"
+        ? String((narrativePath as { path?: unknown }).path || "")
+        : "";
+    const structured = app.contract_path || `${app.id}/contract-draft.pdf`;
+
+    const [structuredResult, narrativeResult] = await Promise.all([
+      client.storage.from("contracts").createSignedUrl(structured, 60 * 10),
+      narrative
+        ? client.storage.from("application-documents").createSignedUrl(narrative, 60 * 10)
+        : Promise.resolve({ data: null, error: null }),
+    ]);
+
+    if (structuredResult.error) safeLog("contract_download_structured_sign", structuredResult.error);
+    if (narrativeResult.error) safeLog("contract_download_narrative_sign", narrativeResult.error);
+
+    return {
+      structuredUrl: structuredResult.data?.signedUrl ?? null,
+      narrativeUrl: narrativeResult.data?.signedUrl ?? null,
+      expiresInSeconds: 600,
+    };
   });

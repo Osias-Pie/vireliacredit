@@ -19,16 +19,32 @@ export interface TrackingResult {
   history: TrackingHistoryItem[];
 }
 
+const attempts = new Map<string, { count: number; resetAt: number }>();
+const WINDOW_MS = 5 * 60 * 1000;
+const MAX_ATTEMPTS = 8;
+
+function assertTrackingRateLimit(reference: string, email: string) {
+  const now = Date.now();
+  const key = `${reference.trim().toLowerCase()}|${email.trim().toLowerCase()}`;
+  const current = attempts.get(key);
+  if (!current || current.resetAt <= now) {
+    attempts.set(key, { count: 1, resetAt: now + WINDOW_MS });
+    return;
+  }
+  if (current.count >= MAX_ATTEMPTS) throw new Error("lookup_limited");
+  current.count += 1;
+}
+
 export const getApplicationTracking = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
-    z
-      .object({
-        reference: z.string().trim().min(8).max(40),
-        email: z.string().trim().email().max(200),
-      })
-      .parse(d),
+    z.object({
+      reference: z.string().trim().min(8).max(40),
+      email: z.string().trim().email().max(200),
+    }).parse(d),
   )
   .handler(async ({ data }) => {
+    assertTrackingRateLimit(data.reference, data.email);
+
     const { createClient } = await import("@supabase/supabase-js");
     const url = process.env["SUPABASE_URL"];
     const key = process.env["SUPABASE_PUBLISHABLE_KEY"];
