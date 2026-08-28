@@ -9,7 +9,7 @@ export function Hero() {
   const { t } = useI18n();
 
   return (
-    <section className="relative isolate min-h-[680px] overflow-hidden bg-[#071D2A] sm:min-h-[720px] lg:min-h-[760px]">
+    <section className="relative isolate min-h-[680px] overflow-hidden bg-[#0B2A5B] sm:min-h-[720px] lg:min-h-[760px]">
       <motion.img
         src={heroImage}
         alt=""
@@ -23,18 +23,9 @@ export function Hero() {
         fetchPriority="high"
       />
 
-      <div
-        aria-hidden
-        className="absolute inset-0 bg-[linear-gradient(90deg,rgba(7,29,42,0.97)_0%,rgba(7,29,42,0.91)_37%,rgba(7,29,42,0.62)_62%,rgba(7,29,42,0.22)_100%)]"
-      />
-      <div
-        aria-hidden
-        className="absolute inset-0 bg-[linear-gradient(0deg,rgba(7,29,42,0.5)_0%,transparent_48%,rgba(7,29,42,0.18)_100%)]"
-      />
-      <div
-        aria-hidden
-        className="absolute -left-28 top-20 h-96 w-96 rounded-full bg-[#155EEF]/20 blur-3xl"
-      />
+      <div aria-hidden className="absolute inset-0 bg-[linear-gradient(90deg,rgba(11,42,91,0.98)_0%,rgba(11,42,91,0.92)_38%,rgba(11,42,91,0.67)_64%,rgba(11,42,91,0.28)_100%)]" />
+      <div aria-hidden className="absolute inset-0 bg-[linear-gradient(0deg,rgba(11,42,91,0.58)_0%,transparent_48%,rgba(11,42,91,0.22)_100%)]" />
+      <div aria-hidden className="absolute -left-28 top-20 h-96 w-96 rounded-full bg-[#D4AF37]/14 blur-3xl" />
 
       <div className="container-page relative z-10 flex min-h-[680px] items-center py-24 sm:min-h-[720px] lg:min-h-[760px] lg:py-28">
         <div className="max-w-3xl">
@@ -44,8 +35,8 @@ export function Hero() {
             transition={{ duration: 0.45 }}
             className="flex items-center gap-3"
           >
-            <span className="h-px w-10 bg-[#7EB0FF]" />
-            <span className="text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-[#DCE9FF]">
+            <span className="h-px w-10 bg-[#D4AF37]" />
+            <span className="text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-white/88">
               Solutions de financement
             </span>
           </motion.div>
@@ -74,7 +65,7 @@ export function Hero() {
             transition={{ duration: 0.5, delay: 0.24 }}
             className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center"
           >
-            <Button asChild size="lg" className="group h-12 rounded-full bg-[#155EEF] px-7 font-semibold text-white shadow-xl shadow-blue-950/30 hover:bg-[#0F4DD4]">
+            <Button asChild size="lg" className="group h-12 rounded-full bg-[#D4AF37] px-7 font-semibold text-[#0B2A5B] shadow-xl shadow-[#0B2A5B]/30 hover:bg-[#D4AF37]/90 hover:text-[#0B2A5B]">
               <Link to="/eligibility">
                 {t("home.hero.cta_primary")}
                 <ArrowRight className="ml-1.5 h-4 w-4 transition-transform group-hover:translate-x-1" />
@@ -84,7 +75,7 @@ export function Hero() {
               asChild
               variant="outline"
               size="lg"
-              className="h-12 rounded-full border-white/30 bg-white/8 px-7 font-semibold text-white backdrop-blur-sm hover:bg-white/14 hover:text-white"
+              className="h-12 rounded-full border-white/35 bg-white/8 px-7 font-semibold text-white backdrop-blur-sm hover:bg-white/14 hover:text-white"
             >
               <Link to="/programs">{t("cta.discover")}</Link>
             </Button>
@@ -94,23 +85,23 @@ export function Hero() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.36 }}
-            className="mt-12 grid max-w-2xl gap-3 border-t border-white/16 pt-6 text-[0.82rem] text-white/72 sm:grid-cols-3"
+            className="mt-12 grid max-w-2xl gap-3 border-t border-[#D4AF37]/30 pt-6 text-[0.82rem] text-white/76 sm:grid-cols-3"
           >
             <li className="flex items-center gap-2">
-              <SearchCheck className="h-4 w-4 shrink-0 text-[#8FB4FF]" />
+              <SearchCheck className="h-4 w-4 shrink-0 text-[#D4AF37]" />
               Éligibilité en quelques questions
             </li>
             <li className="flex items-center gap-2">
-              <FileCheck2 className="h-4 w-4 shrink-0 text-[#8FB4FF]" />
+              <FileCheck2 className="h-4 w-4 shrink-0 text-[#D4AF37]" />
               Demande structurée en ligne
             </li>
             <li className="flex items-center gap-2">
-              <Lock className="h-4 w-4 shrink-0 text-[#8FB4FF]" />
+              <Lock className="h-4 w-4 shrink-0 text-[#D4AF37]" />
               Suivi privé par référence
             </li>
           </motion.ul>
 
-          <p className="mt-5 max-w-[58ch] text-[0.72rem] leading-relaxed text-white/48">
+          <p className="mt-5 max-w-[58ch] text-[0.72rem] leading-relaxed text-white/52">
             {t("home.hero.legal")}
           </p>
         </div>
