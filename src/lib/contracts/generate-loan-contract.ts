@@ -1,4 +1,11 @@
-import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+import {
+  PDFDocument,
+  StandardFonts,
+  rgb,
+  type PDFImage,
+  type PDFFont,
+  type PDFPage,
+} from "pdf-lib";
 import { CONTRACT_ASSETS } from "./official-assets";
 
 export type ContractLayout = "structured" | "narrative";
@@ -28,15 +35,14 @@ export interface LoanContractInput {
   swiftBic: string;
   confirmationDate: string;
   layout?: ContractLayout;
+  /** APPROVED is never shown on a pre-validation draft. */
+  approved?: boolean;
 }
 
-const NAVY = rgb(0.035, 0.118, 0.23);
-const BLUE = rgb(0.082, 0.369, 0.937);
-const GOLD = rgb(0.76, 0.59, 0.27);
-const INK = rgb(0.08, 0.12, 0.2);
-const MUTED = rgb(0.38, 0.42, 0.48);
-const LINE = rgb(0.84, 0.78, 0.65);
-const PAPER = rgb(0.992, 0.986, 0.97);
+// Official Virelia document palette: blue #0B2A5B, gold #D4AF37, white #FFFFFF.
+const NAVY = rgb(11 / 255, 42 / 255, 91 / 255);
+const GOLD = rgb(212 / 255, 175 / 255, 55 / 255);
+const WHITE = rgb(1, 1, 1);
 
 function decodeBase64(value: string): Uint8Array {
   if (typeof atob === "function") {
@@ -44,28 +50,6 @@ function decodeBase64(value: string): Uint8Array {
     return Uint8Array.from(binary, (c) => c.charCodeAt(0));
   }
   return Uint8Array.from(Buffer.from(value, "base64"));
-}
-
-function wrap(font: PDFFont, text: string, size: number, maxWidth: number): string[] {
-  const clean = (text || "—").replace(/\s+/g, " ").trim();
-  const words = clean.split(" ");
-  const lines: string[] = [];
-  let current = "";
-  for (const word of words) {
-    const next = current ? `${current} ${word}` : word;
-    if (font.widthOfTextAtSize(next, size) <= maxWidth) current = next;
-    else {
-      if (current) lines.push(current);
-      current = word;
-    }
-  }
-  if (current) lines.push(current);
-  return lines.length ? lines : ["—"];
-}
-
-function centerText(page: PDFPage, font: PDFFont, text: string, y: number, size: number, width: number, color = NAVY) {
-  const textWidth = font.widthOfTextAtSize(text, size);
-  page.drawText(text, { x: (width - textWidth) / 2, y, size, font, color });
 }
 
 function safe(value?: string | null) {
@@ -78,33 +62,82 @@ function humanDate(value: string) {
   return d.toLocaleDateString("fr-FR");
 }
 
-function drawTable(
-  page: PDFPage,
-  font: PDFFont,
-  bold: PDFFont,
-  x: number,
-  topY: number,
-  width: number,
-  rows: Array<[string, string]>,
-  labelWidth = 112,
-) {
-  const size = 7.2;
-  let y = topY;
-  for (const [label, value] of rows) {
-    const valueLines = wrap(font, safe(value), size, width - labelWidth - 12);
-    const rowHeight = Math.max(18, valueLines.length * 9 + 6);
-    page.drawRectangle({ x, y: y - rowHeight, width, height: rowHeight, borderColor: LINE, borderWidth: 0.55 });
-    page.drawLine({ start: { x: x + labelWidth, y }, end: { x: x + labelWidth, y: y - rowHeight }, thickness: 0.45, color: LINE });
-    page.drawText(label, { x: x + 6, y: y - 12, size: 6.9, font: bold, color: NAVY });
-    valueLines.forEach((line, i) => page.drawText(line, { x: x + labelWidth + 6, y: y - 12 - i * 9, size, font, color: INK }));
-    y -= rowHeight;
+function wrap(font: PDFFont, text: string, size: number, maxWidth: number): string[] {
+  const clean = safe(text).replace(/\s+/g, " ");
+  const words = clean.split(" ");
+  const lines: string[] = [];
+  let current = "";
+
+  for (const word of words) {
+    const next = current ? `${current} ${word}` : word;
+    if (font.widthOfTextAtSize(next, size) <= maxWidth) {
+      current = next;
+      continue;
+    }
+
+    if (current) lines.push(current);
+    if (font.widthOfTextAtSize(word, size) <= maxWidth) {
+      current = word;
+      continue;
+    }
+
+    // Break exceptionally long tokens (IBAN, e-mail, URL-like values) instead of overflowing.
+    let chunk = "";
+    for (const char of word) {
+      if (font.widthOfTextAtSize(chunk + char, size) <= maxWidth) chunk += char;
+      else {
+        if (chunk) lines.push(chunk);
+        chunk = char;
+      }
+    }
+    current = chunk;
   }
-  return y;
+
+  if (current) lines.push(current);
+  return lines.length ? lines : ["—"];
 }
 
-function sectionTitle(page: PDFPage, bold: PDFFont, text: string, x: number, y: number) {
-  page.drawText(text.toUpperCase(), { x, y, size: 8.5, font: bold, color: NAVY });
-  page.drawLine({ start: { x, y: y - 4 }, end: { x: x + 58, y: y - 4 }, thickness: 1.2, color: GOLD });
+function cappedLines(font: PDFFont, text: string, size: number, width: number, maxLines: number) {
+  const lines = wrap(font, text, size, width);
+  if (lines.length <= maxLines) return lines;
+  const kept = lines.slice(0, maxLines);
+  let last = kept[maxLines - 1] || "";
+  while (last && font.widthOfTextAtSize(`${last}…`, size) > width) last = last.slice(0, -1);
+  kept[maxLines - 1] = `${last}…`;
+  return kept;
+}
+
+function centerText(
+  page: PDFPage,
+  font: PDFFont,
+  text: string,
+  y: number,
+  size: number,
+  width: number,
+  color = NAVY,
+  opacity = 1,
+) {
+  const textWidth = font.widthOfTextAtSize(text, size);
+  page.drawText(text, { x: (width - textWidth) / 2, y, size, font, color, opacity });
+}
+
+function drawFitImage(
+  page: PDFPage,
+  image: PDFImage,
+  x: number,
+  y: number,
+  maxWidth: number,
+  maxHeight: number,
+  opacity = 1,
+) {
+  const dims = image.scaleToFit(maxWidth, maxHeight);
+  page.drawImage(image, {
+    x: x + (maxWidth - dims.width) / 2,
+    y: y + (maxHeight - dims.height) / 2,
+    width: dims.width,
+    height: dims.height,
+    opacity,
+  });
 }
 
 async function embedOfficialAssets(doc: PDFDocument) {
@@ -116,172 +149,273 @@ async function embedOfficialAssets(doc: PDFDocument) {
   };
 }
 
-function drawBrandFrame(page: PDFPage, width: number, height: number) {
+function drawFrame(page: PDFPage, width: number, height: number) {
+  page.drawRectangle({ x: 10, y: 10, width: width - 20, height: height - 20, color: WHITE });
   page.drawRectangle({ x: 12, y: 12, width: width - 24, height: height - 24, borderColor: NAVY, borderWidth: 1.4 });
-  page.drawRectangle({ x: 16, y: 16, width: width - 32, height: height - 32, borderColor: GOLD, borderWidth: 0.55 });
+  page.drawRectangle({ x: 16, y: 16, width: width - 32, height: height - 32, borderColor: GOLD, borderWidth: 0.65 });
 }
 
 function drawHeader(
   page: PDFPage,
   bold: PDFFont,
   regular: PDFFont,
-  width: number,
-  seal: Awaited<ReturnType<PDFDocument["embedJpg"]>>,
+  seal: PDFImage,
   input: LoanContractInput,
+  width: number,
 ) {
-  page.drawImage(seal, { x: 36, y: 742, width: 72, height: 72 });
-  centerText(page, bold, "VIRELIA CRÉDIT", 787, 17, width, NAVY);
-  centerText(page, bold, "PROJET DE CONTRAT DE PRÊT", 758, 15.5, width, NAVY);
-  centerText(page, regular, "Soumis à validation du dossier", 739, 9, width, GOLD);
-  page.drawLine({ start: { x: 137, y: 729 }, end: { x: width - 40, y: 729 }, thickness: 0.8, color: GOLD });
-  page.drawText(`Référence : ${input.reference || "PROJET – attribuée après enregistrement"}`, { x: 140, y: 714, size: 7.5, font: bold, color: NAVY });
-  page.drawText(`Date : ${humanDate(input.confirmationDate)}`, { x: 405, y: 714, size: 7.5, font: bold, color: NAVY });
-}
+  drawFitImage(page, seal, 31, 739, 82, 82);
+  centerText(page, bold, "VIRELIA CRÉDIT", 790, 18.5, width, NAVY);
+  page.drawLine({ start: { x: 181, y: 781 }, end: { x: 414, y: 781 }, thickness: 0.7, color: GOLD });
+  centerText(page, bold, "PROJET DE CONTRAT DE PRÊT", 758, 15.2, width, NAVY);
+  centerText(page, regular, "Soumis à validation du dossier", 739, 9.2, width, GOLD);
+  page.drawLine({ start: { x: 137, y: 728 }, end: { x: 552, y: 728 }, thickness: 0.7, color: GOLD });
 
-function drawWatermark(page: PDFPage, seal: Awaited<ReturnType<PDFDocument["embedJpg"]>>, width: number, height: number) {
-  page.drawImage(seal, { x: width / 2 - 150, y: height / 2 - 150, width: 300, height: 300, opacity: 0.055 });
-}
-
-function drawSignatures(
-  page: PDFPage,
-  bold: PDFFont,
-  regular: PDFFont,
-  director: Awaited<ReturnType<PDFDocument["embedJpg"]>>,
-  vicePresident: Awaited<ReturnType<PDFDocument["embedJpg"]>>,
-  approved: Awaited<ReturnType<PDFDocument["embedJpg"]>>,
-) {
-  page.drawLine({ start: { x: 298, y: 128 }, end: { x: 298, y: 52 }, thickness: 0.45, color: GOLD });
-
-  page.drawText("POUR VIRELIA CRÉDIT", { x: 88, y: 118, size: 8.4, font: bold, color: NAVY });
-  page.drawText("Directeur Général", { x: 113, y: 106, size: 7.2, font: regular, color: GOLD });
-  page.drawImage(director, { x: 76, y: 57, width: 142, height: 66 });
-  page.drawLine({ start: { x: 69, y: 54 }, end: { x: 229, y: 54 }, thickness: 0.45, color: GOLD });
-
-  page.drawText("VALIDATION INSTITUTIONNELLE", { x: 344, y: 118, size: 8.4, font: bold, color: NAVY });
-  page.drawText("Vice-Président", { x: 397, y: 106, size: 7.2, font: regular, color: GOLD });
-  page.drawImage(vicePresident, { x: 338, y: 56, width: 92, height: 82 });
-  page.drawImage(approved, { x: 424, y: 53, width: 93, height: 78, opacity: 0.93 });
-  page.drawLine({ start: { x: 335, y: 54 }, end: { x: 516, y: 54 }, thickness: 0.45, color: GOLD });
-
-  page.drawText("Document de référence pré-contractuel — ne constitue pas un engagement définitif de Virelia Crédit.", {
-    x: 99,
-    y: 30,
-    size: 6.5,
-    font: regular,
-    color: MUTED,
+  page.drawText(`Référence : ${input.reference || "attribuée après enregistrement"}`, {
+    x: 141,
+    y: 712,
+    size: 7.4,
+    font: bold,
+    color: NAVY,
+  });
+  page.drawText(`Date : ${humanDate(input.confirmationDate)}`, {
+    x: 412,
+    y: 712,
+    size: 7.4,
+    font: bold,
+    color: NAVY,
   });
 }
 
-function drawStructured(
+function drawWatermark(page: PDFPage, seal: PDFImage, width: number, height: number) {
+  drawFitImage(page, seal, width / 2 - 155, height / 2 - 155, 310, 310, 0.05);
+}
+
+function sectionTitle(page: PDFPage, bold: PDFFont, text: string, x: number, y: number) {
+  page.drawText(text.toUpperCase(), { x, y, size: 8.4, font: bold, color: NAVY });
+  page.drawLine({ start: { x, y: y - 4 }, end: { x: x + 62, y: y - 4 }, thickness: 1, color: GOLD });
+}
+
+function drawTable(
   page: PDFPage,
   regular: PDFFont,
   bold: PDFFont,
-  input: LoanContractInput,
+  x: number,
+  topY: number,
+  width: number,
+  rows: Array<[string, string, number?]>,
+  labelWidth = 88,
 ) {
+  const size = 6.65;
+  let y = topY;
+  for (const [label, value, maxLines = 2] of rows) {
+    const lines = cappedLines(regular, safe(value), size, width - labelWidth - 12, maxLines);
+    const rowHeight = Math.max(17, lines.length * 8.1 + 5.5);
+    page.drawRectangle({
+      x,
+      y: y - rowHeight,
+      width,
+      height: rowHeight,
+      borderColor: GOLD,
+      borderWidth: 0.38,
+      borderOpacity: 0.65,
+      color: WHITE,
+      opacity: 0.82,
+    });
+    page.drawLine({
+      start: { x: x + labelWidth, y },
+      end: { x: x + labelWidth, y: y - rowHeight },
+      thickness: 0.35,
+      color: GOLD,
+      opacity: 0.65,
+    });
+    page.drawText(label, { x: x + 5, y: y - 11.2, size: 6.35, font: bold, color: NAVY });
+    lines.forEach((line, index) => {
+      page.drawText(line, {
+        x: x + labelWidth + 5,
+        y: y - 11.2 - index * 8.1,
+        size,
+        font: regular,
+        color: NAVY,
+        opacity: 0.92,
+      });
+    });
+    y -= rowHeight;
+  }
+  return y;
+}
+
+function drawStructured(page: PDFPage, regular: PDFFont, bold: PDFFont, input: LoanContractInput) {
   const leftX = 42;
-  const gap = 12;
   const colW = 249;
-  const rightX = leftX + colW + gap;
+  const rightX = 303;
 
-  const intro = `Monsieur / Madame ${safe(`${input.firstName} ${input.lastName}`)}, né(e) le ${safe(input.birthDate)}, a soumis auprès de Virelia Crédit une demande de ${safe(input.programLabel)} d’un montant de ${safe(input.amountLabel)}, destinée à ${safe(input.purpose)}.`;
-  wrap(regular, intro, 7.4, 500).slice(0, 3).forEach((line, i) => page.drawText(line, { x: 48, y: 687 - i * 9.5, size: 7.4, font: regular, color: INK }));
+  const intro = `Monsieur / Madame ${safe(`${input.firstName} ${input.lastName}`)}, né(e) le ${safe(input.birthDate)}, a soumis auprès de Virelia Crédit une demande de ${safe(input.programLabel)} d’un montant de ${safe(input.amountLabel)}, destinée à ${safe(input.purpose)}. Le présent document constitue un projet pré-contractuel soumis à l’étude complète du dossier.`;
+  cappedLines(regular, intro, 7.15, 500, 4).forEach((line, i) => {
+    page.drawText(line, { x: 48, y: 687 - i * 8.9, size: 7.15, font: regular, color: NAVY, opacity: 0.94 });
+  });
 
-  sectionTitle(page, bold, "1. Demandeur", leftX, 650);
-  sectionTitle(page, bold, "2. Objet de la demande", rightX, 650);
+  sectionTitle(page, bold, "1. Demandeur", leftX, 646);
+  sectionTitle(page, bold, "2. Objet de la demande", rightX, 646);
 
-  const y1 = drawTable(page, regular, bold, leftX, 638, colW, [
-    ["Nom complet", `${input.firstName} ${input.lastName}`],
-    ["Naissance", input.birthDate],
-    ["Nationalité", input.nationality],
-    ["Adresse", input.address],
-    ["Téléphone", input.phone],
-    ["E-mail", input.email],
-  ], 87);
-  const y2 = drawTable(page, regular, bold, rightX, 638, colW, [
-    ["Type de prêt", input.programLabel],
-    ["Montant demandé", input.amountLabel],
-    ["Durée souhaitée", `${input.durationMonths} mois`],
-    ["Objet", input.purpose],
-    ["Délai demandé", input.processingSpeedLabel],
-    ["Frais de dossier", input.processingFeeLabel],
-  ], 91);
+  const firstBottom = Math.min(
+    drawTable(page, regular, bold, leftX, 634, colW, [
+      ["Nom complet", `${input.firstName} ${input.lastName}`],
+      ["Naissance", input.birthDate],
+      ["Nationalité", input.nationality],
+      ["Adresse", input.address, 3],
+      ["Téléphone", input.phone],
+      ["E-mail", input.email, 2],
+    ], 84),
+    drawTable(page, regular, bold, rightX, 634, colW, [
+      ["Type de prêt", input.programLabel],
+      ["Montant demandé", input.amountLabel],
+      ["Durée souhaitée", `${input.durationMonths} mois`],
+      ["Objet", input.purpose, 3],
+      ["Délai demandé", input.processingSpeedLabel],
+      ["Frais de dossier", input.processingFeeLabel, 2],
+    ], 88),
+  );
 
-  const nextY = Math.min(y1, y2) - 20;
-  sectionTitle(page, bold, "3. Conditions déclarées", leftX, nextY);
-  sectionTitle(page, bold, "4. Coordonnées de versement", rightX, nextY);
+  const secondTitleY = firstBottom - 17;
+  sectionTitle(page, bold, "3. Conditions déclarées", leftX, secondTitleY);
+  sectionTitle(page, bold, "4. Coordonnées de versement", rightX, secondTitleY);
 
-  const c1 = drawTable(page, regular, bold, leftX, nextY - 12, colW, [
-    ["Situation", input.employmentLabel || "Situation déclarée dans le dossier"],
-    ["Revenus déclarés", input.incomeLabel || "Voir dossier"],
-    ["Charges déclarées", input.monthlyChargesLabel || "Voir dossier"],
-    ["Engagement", "Informations exactes et justificatifs requis"],
-  ], 91);
-  const c2 = drawTable(page, regular, bold, rightX, nextY - 12, colW, [
-    ["Banque", input.bankName],
-    ["Titulaire", input.accountHolderName],
-    ["IBAN / compte", input.ibanAccountNumber],
-    ["SWIFT / BIC", input.swiftBic || "Non renseigné"],
-  ], 91);
+  const secondBottom = Math.min(
+    drawTable(page, regular, bold, leftX, secondTitleY - 12, colW, [
+      ["Situation", input.employmentLabel || "Situation déclarée"],
+      ["Revenus", input.incomeLabel || "Non renseigné"],
+      ["Charges", input.monthlyChargesLabel || "Non renseigné"],
+      ["Engagement", "Informations exactes et justificatifs requis", 2],
+    ], 88),
+    drawTable(page, regular, bold, rightX, secondTitleY - 12, colW, [
+      ["Banque", input.bankName, 2],
+      ["Titulaire", input.accountHolderName, 2],
+      ["IBAN / compte", input.ibanAccountNumber, 2],
+      ["SWIFT / BIC", input.swiftBic || "Non renseigné"],
+    ], 88),
+  );
 
-  const condY = Math.min(c1, c2) - 18;
-  sectionTitle(page, bold, "5. Conditions essentielles", leftX, condY);
-  const boxTop = condY - 12;
-  page.drawRectangle({ x: leftX, y: boxTop - 45, width: 510, height: 45, borderColor: LINE, borderWidth: 0.6, color: PAPER, opacity: 0.84 });
-  const conditions = [
+  const conditionY = secondBottom - 17;
+  sectionTitle(page, bold, "5. Conditions essentielles", leftX, conditionY);
+  const boxTop = conditionY - 12;
+  const boxHeight = 42;
+  page.drawRectangle({
+    x: leftX,
+    y: boxTop - boxHeight,
+    width: 510,
+    height: boxHeight,
+    borderColor: GOLD,
+    borderWidth: 0.5,
+    color: WHITE,
+    opacity: 0.88,
+  });
+  const items = [
     ["Montant", input.amountLabel],
     ["Durée", `${input.durationMonths} mois`],
     ["Traitement", input.processingSpeedLabel],
     ["Frais", input.processingFeeLabel],
-    ["Décision", "Après étude du dossier"],
+    ["Décision", "Après étude"],
   ] as const;
-  const cw = 102;
-  conditions.forEach(([label, value], index) => {
-    const x = leftX + index * cw;
-    if (index) page.drawLine({ start: { x, y: boxTop }, end: { x, y: boxTop - 45 }, thickness: 0.4, color: LINE });
-    page.drawText(label, { x: x + 5, y: boxTop - 12, size: 6.5, font: bold, color: NAVY });
-    wrap(regular, value, 6.5, cw - 10).slice(0, 2).forEach((line, i) => page.drawText(line, { x: x + 5, y: boxTop - 25 - i * 8, size: 6.5, font: regular, color: INK }));
+  const cell = 102;
+  items.forEach(([label, value], index) => {
+    const cellX = leftX + index * cell;
+    if (index) {
+      page.drawLine({ start: { x: cellX, y: boxTop }, end: { x: cellX, y: boxTop - boxHeight }, thickness: 0.35, color: GOLD, opacity: 0.65 });
+    }
+    page.drawText(label, { x: cellX + 5, y: boxTop - 11, size: 6.15, font: bold, color: NAVY });
+    cappedLines(regular, value, 6.25, cell - 10, 2).forEach((line, i) => {
+      page.drawText(line, { x: cellX + 5, y: boxTop - 23 - i * 7.4, size: 6.25, font: regular, color: NAVY, opacity: 0.9 });
+    });
   });
 
-  const valY = boxTop - 62;
-  sectionTitle(page, bold, "6. Validation documentaire", leftX, valY);
-  const note = "Le présent projet reprend les informations communiquées par le demandeur. Il reste soumis à l’étude du dossier, à la vérification des pièces justificatives et aux conditions applicables de la plateforme. Aucun accord de financement n’est garanti par ce document.";
-  wrap(regular, note, 6.8, 500).slice(0, 4).forEach((line, i) => page.drawText(line, { x: leftX, y: valY - 16 - i * 8.2, size: 6.8, font: regular, color: INK }));
+  const validationY = boxTop - boxHeight - 17;
+  sectionTitle(page, bold, "6. Validation documentaire", leftX, validationY);
+  const note = "Le demandeur confirme l’exactitude des informations communiquées. Des documents complémentaires peuvent être demandés selon la nature de la demande et l’étude du dossier. Ce projet de contrat ne vaut ni accord automatique, ni promesse de décaissement, ni engagement définitif de Virelia Crédit.";
+  cappedLines(regular, note, 6.65, 500, 4).forEach((line, i) => {
+    page.drawText(line, { x: leftX, y: validationY - 15 - i * 8, size: 6.65, font: regular, color: NAVY, opacity: 0.9 });
+  });
 }
 
 function drawNarrative(page: PDFPage, regular: PDFFont, bold: PDFFont, input: LoanContractInput) {
-  let y = 683;
-  const x = 52;
-  const maxWidth = 491;
-  const para = (text: string, size = 7.6, gap = 7) => {
-    const lines = wrap(regular, text, size, maxWidth);
-    lines.forEach((line) => {
-      page.drawText(line, { x, y, size, font: regular, color: INK });
-      y -= size + 2.2;
-    });
+  let y = 685;
+  const x = 50;
+  const maxWidth = 495;
+
+  const heading = (number: string, title: string) => {
+    page.drawText(`${number}. ${title.toUpperCase()}`, { x, y, size: 8.8, font: bold, color: NAVY });
+    page.drawLine({ start: { x, y: y - 4 }, end: { x: x + 72, y: y - 4 }, thickness: 0.8, color: GOLD });
+    y -= 17;
+  };
+
+  const paragraph = (text: string, maxLines = 7, gap = 8) => {
+    const lines = cappedLines(regular, text, 7.25, maxWidth, maxLines);
+    for (const line of lines) {
+      page.drawText(line, { x, y, size: 7.25, font: regular, color: NAVY, opacity: 0.94 });
+      y -= 9.1;
+    }
     y -= gap;
   };
-  const heading = (n: string, title: string) => {
-    page.drawText(`${n}. ${title.toUpperCase()}`, { x, y, size: 9, font: bold, color: NAVY });
-    page.drawLine({ start: { x, y: y - 4 }, end: { x: x + 72, y: y - 4 }, thickness: 1.1, color: GOLD });
-    y -= 18;
-  };
 
-  para(`Monsieur / Madame ${safe(`${input.firstName} ${input.lastName}`)}, né(e) le ${safe(input.birthDate)}, a transmis à Virelia Crédit une demande de ${safe(input.programLabel)} d’un montant de ${safe(input.amountLabel)}. Le financement demandé est destiné à : ${safe(input.purpose)}.`);
+  heading("1", "Identité et demande");
+  paragraph(
+    `Monsieur / Madame ${safe(`${input.firstName} ${input.lastName}`)}, né(e) le ${safe(input.birthDate)} et de nationalité ${safe(input.nationality)}, domicilié(e) à ${safe(input.address)}, a transmis à Virelia Crédit une demande de ${safe(input.programLabel)}. Le montant demandé est de ${safe(input.amountLabel)} pour une durée souhaitée de ${safe(input.durationMonths)} mois.`,
+    7,
+  );
 
-  heading("1", "Identification du demandeur");
-  para(`Le demandeur déclare résider à l’adresse suivante : ${safe(input.address)}. Il peut être contacté au ${safe(input.phone)} et à l’adresse électronique ${safe(input.email)}. Nationalité déclarée : ${safe(input.nationality)}.`);
+  heading("2", "Objet et conditions déclarées");
+  paragraph(
+    `La demande est destinée à l’objet suivant : ${safe(input.purpose)}. La situation déclarée est « ${safe(input.employmentLabel)} ». Les revenus mensuels déclarés sont ${safe(input.incomeLabel)} et les charges mensuelles déclarées sont ${safe(input.monthlyChargesLabel)}. Ces informations seront vérifiées dans le cadre de l’étude du dossier.`,
+    8,
+  );
 
-  heading("2", "Situation et demande");
-  para(`Situation professionnelle déclarée : ${safe(input.employmentLabel)}. Revenus déclarés : ${safe(input.incomeLabel)}. Charges mensuelles déclarées : ${safe(input.monthlyChargesLabel)}. La durée souhaitée est de ${safe(input.durationMonths)} mois, avec un délai de traitement demandé « ${safe(input.processingSpeedLabel)} ».`);
-
-  heading("3", "Frais de dossier et conditions de traitement");
-  para(`Les frais de dossier applicables à la demande sont ceux déterminés par la grille de la plateforme pour le délai choisi : ${safe(input.processingFeeLabel)}. Ces frais ne constituent pas une garantie d’accord. Le dossier reste soumis à vérification, analyse et décision.`);
+  heading("3", "Traitement et frais");
+  paragraph(
+    `Le délai de traitement demandé est ${safe(input.processingSpeedLabel)}. Les frais de traitement correspondants sont ${safe(input.processingFeeLabel)}. Ces frais proviennent de la grille configurée dans la plateforme et ne constituent ni une garantie d’acceptation ni une décision de crédit. Les conditions financières définitives ne sont établies qu’après l’étude du dossier lorsqu’elles sont disponibles.`,
+    8,
+  );
 
   heading("4", "Coordonnées de versement déclarées");
-  para(`Banque : ${safe(input.bankName)}. Titulaire du compte : ${safe(input.accountHolderName)}. IBAN / numéro de compte : ${safe(input.ibanAccountNumber)}. SWIFT / BIC : ${safe(input.swiftBic || "Non renseigné")}. Ces données sont intégrées uniquement au document privé personnalisé et ne sont pas destinées à l’espace public de suivi.`);
+  paragraph(
+    `Le demandeur a indiqué le compte au nom de ${safe(input.accountHolderName)}, auprès de ${safe(input.bankName)}, avec la référence de compte / IBAN ${safe(input.ibanAccountNumber)}${input.swiftBic ? ` et le code SWIFT / BIC ${input.swiftBic}` : ""}. Ces données sont conservées dans les espaces privés prévus pour le dossier et ne sont pas exposées dans le suivi public.`,
+    7,
+  );
 
   heading("5", "Validation documentaire");
-  para("Le demandeur confirme l’exactitude des informations transmises et accepte que des pièces complémentaires puissent être demandées. Ce document est un projet pré-contractuel soumis à validation du dossier. Il ne vaut ni acceptation automatique du prêt, ni promesse de décaissement, ni engagement définitif de Virelia Crédit.", 7.4, 4);
+  paragraph(
+    "Le demandeur confirme avoir relu le présent projet et certifie l’exactitude des informations communiquées. Des documents complémentaires peuvent être demandés selon la nature de la demande et l’étude du dossier. Ce document reste un PROJET DE CONTRAT DE PRÊT soumis à validation du dossier. Il ne vaut ni acceptation automatique, ni promesse de décaissement, ni engagement définitif de Virelia Crédit.",
+    8,
+    4,
+  );
+}
+
+function drawSignatures(
+  page: PDFPage,
+  regular: PDFFont,
+  bold: PDFFont,
+  director: PDFImage,
+  vicePresident: PDFImage,
+  approvedStamp: PDFImage,
+  showApproved: boolean,
+) {
+  page.drawLine({ start: { x: 298, y: 139 }, end: { x: 298, y: 51 }, thickness: 0.45, color: GOLD });
+
+  page.drawText("POUR VIRELIA CRÉDIT", { x: 84, y: 130, size: 8.1, font: bold, color: NAVY });
+  page.drawText("Directeur Général", { x: 110, y: 117, size: 7.3, font: regular, color: GOLD });
+  drawFitImage(page, director, 61, 55, 184, 66);
+  page.drawLine({ start: { x: 69, y: 54 }, end: { x: 237, y: 54 }, thickness: 0.45, color: GOLD });
+
+  page.drawText("VALIDATION INSTITUTIONNELLE", { x: 341, y: 130, size: 8.1, font: bold, color: NAVY });
+  page.drawText("Vice-Président", { x: 399, y: 117, size: 7.3, font: regular, color: GOLD });
+  drawFitImage(page, vicePresident, 326, 54, showApproved ? 125 : 190, 70);
+  if (showApproved) drawFitImage(page, approvedStamp, 430, 51, 96, 82, 0.94);
+  page.drawLine({ start: { x: 329, y: 54 }, end: { x: 526, y: 54 }, thickness: 0.45, color: GOLD });
+
+  page.drawText(
+    showApproved
+      ? "Dossier approuvé — validation institutionnelle apposée selon le statut réel du dossier."
+      : "Document de référence pré-contractuel — soumis à validation du dossier.",
+    { x: showApproved ? 142 : 169, y: 31, size: 6.3, font: regular, color: NAVY, opacity: 0.68 },
+  );
 }
 
 export async function generateLoanContractPdf(input: LoanContractInput): Promise<Uint8Array> {
@@ -289,17 +423,25 @@ export async function generateLoanContractPdf(input: LoanContractInput): Promise
   const page = doc.addPage([595.28, 841.89]);
   const regular = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
-  const { width, height } = page.getSize();
   const assets = await embedOfficialAssets(doc);
+  const { width, height } = page.getSize();
 
-  page.drawRectangle({ x: 0, y: 0, width, height, color: PAPER });
-  drawBrandFrame(page, width, height);
+  drawFrame(page, width, height);
   drawWatermark(page, assets.seal, width, height);
-  drawHeader(page, bold, regular, width, assets.seal, input);
+  drawHeader(page, bold, regular, assets.seal, input, width);
 
   if ((input.layout ?? "structured") === "narrative") drawNarrative(page, regular, bold, input);
   else drawStructured(page, regular, bold, input);
 
-  drawSignatures(page, bold, regular, assets.director, assets.vicePresident, assets.approved);
+  drawSignatures(
+    page,
+    regular,
+    bold,
+    assets.director,
+    assets.vicePresident,
+    assets.approved,
+    input.approved === true,
+  );
+
   return doc.save();
 }
