@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   AlertCircle,
+  Archive,
   BarChart3,
   ChevronRight,
   CircleDollarSign,
@@ -49,16 +50,24 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ArchivedApplicationsPanel } from "@/components/admin/ArchivedApplicationsPanel";
+import {
+  ApplicationArchiveControls,
+  ArchiveApplicationButton,
+} from "@/components/admin/ApplicationArchiveActions";
 import { supabase } from "@/integrations/supabase/client";
 import {
   APPLICATION_STATUSES,
   createAdminSignedUrl,
   getApplicationAdminDetail,
   getCurrentAdmin,
-  listApplications,
   updateApplicationStatus,
   type ApplicationStatus,
 } from "@/lib/admin.functions";
+import {
+  getArchiveCount,
+  listActiveApplications,
+} from "@/lib/admin-archives.functions";
 import { STATUS_LABEL_FR, STATUS_TONE } from "@/lib/status";
 
 export const Route = createFileRoute("/_authenticated/admin")({ component: AdminPage });
@@ -95,6 +104,8 @@ type Application = {
   admin_note?: string | null;
   public_message?: string | null;
   missing_public_requirements?: string | null;
+  archived_at?: string | null;
+  archived_by?: string | null;
   created_at: string;
 };
 
@@ -166,6 +177,7 @@ function startOfDay(value = new Date()) {
 function AdminPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const [adminView, setAdminView] = useState<"active" | "archives">("active");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -179,7 +191,14 @@ function AdminPage() {
 
   const appsQ = useQuery({
     queryKey: ["admin", "applications"],
-    queryFn: () => listApplications() as Promise<Application[]>,
+    queryFn: () => listActiveApplications() as Promise<Application[]>,
+    enabled: isAdmin,
+    refetchInterval: 30_000,
+  });
+
+  const archiveCountQ = useQuery({
+    queryKey: ["admin", "archive-count"],
+    queryFn: () => getArchiveCount(),
     enabled: isAdmin,
     refetchInterval: 30_000,
   });
@@ -204,6 +223,7 @@ function AdminPage() {
       toast.success("Dossier mis à jour");
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["admin", "applications"] }),
+        qc.invalidateQueries({ queryKey: ["admin", "archives"] }),
         qc.invalidateQueries({ queryKey: ["admin", "application", selectedId] }),
       ]);
     },
@@ -299,6 +319,11 @@ function AdminPage() {
     setMissingRequirements("");
   };
 
+  const changeView = (view: "active" | "archives") => {
+    setSelectedId(null);
+    setAdminView(view);
+  };
+
   const openPrivateFile = async (bucket: "application-documents" | "contracts", path: string) => {
     try {
       const { url } = await createAdminSignedUrl({ data: { bucket, path } });
@@ -335,11 +360,42 @@ function AdminPage() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-sm font-semibold text-primary">Virelia Crédit</p>
-            <h1 className="mt-1 text-3xl font-bold tracking-tight">Tableau de bord</h1>
-            <p className="mt-2 text-sm text-muted-foreground">Pilotage des demandes, priorités, documents privés et suivi client.</p>
+            <h1 className="mt-1 text-3xl font-bold tracking-tight">
+              {adminView === "active" ? "Tableau de bord" : "Archives"}
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {adminView === "active"
+                ? "Pilotage des demandes actives, priorités, documents privés et suivi client."
+                : "Dossiers retirés du tableau de bord actif, toujours consultables et restaurables."}
+            </p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="rounded-full" onClick={() => appsQ.refetch()}>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant={adminView === "active" ? "default" : "outline"}
+              size="sm"
+              className="rounded-full"
+              onClick={() => changeView("active")}
+            >
+              <BarChart3 className="mr-2 h-4 w-4" /> Dossiers actifs
+            </Button>
+            <Button
+              variant={adminView === "archives" ? "default" : "outline"}
+              size="sm"
+              className="rounded-full"
+              onClick={() => changeView("archives")}
+            >
+              <Archive className="mr-2 h-4 w-4" /> Archives ({archiveCountQ.data?.count ?? 0})
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-full"
+              onClick={() => void Promise.all([
+                appsQ.refetch(),
+                archiveCountQ.refetch(),
+                qc.invalidateQueries({ queryKey: ["admin", "archives"] }),
+              ])}
+            >
               <RefreshCw className={`mr-2 h-4 w-4 ${appsQ.isFetching ? "animate-spin" : ""}`} /> Actualiser
             </Button>
             <Button variant="ghost" size="sm" className="rounded-full" onClick={signOut}>
@@ -348,137 +404,148 @@ function AdminPage() {
           </div>
         </div>
 
-        <div className="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <MetricCard icon={BarChart3} label="Total des demandes" value={dashboard.total} hint={`${dashboard.today} nouvelle(s) aujourd’hui`} />
-          <MetricCard icon={Clock3} label="À étudier" value={dashboard.verification + dashboard.analysis} hint={`${dashboard.verification} en vérification · ${dashboard.analysis} en analyse`} />
-          <MetricCard icon={FileClock} label="Documents à compléter" value={dashboard.documents} hint="Dossiers nécessitant une action client" />
-          <MetricCard icon={CircleDollarSign} label="Montant total demandé" value={dashboard.mixedCurrencies ? "Multi-devise" : formatAmount(dashboard.totalAmount, dashboard.baseCurrency)} hint={`${dashboard.approved} approuvée(s) · ${dashboard.refused} refusée(s)`} />
-        </div>
-
-        <div className="mt-6 grid gap-4 lg:grid-cols-[1.45fr_0.85fr]">
-          <ChartCard title="Demandes sur les 30 derniers jours" subtitle="Volume réel des dossiers créés">
-            <ResponsiveContainer width="100%" height={260}>
-              <AreaChart data={dashboard.last30} margin={{ left: -20, right: 8, top: 10 }}>
-                <defs>
-                  <linearGradient id="vireliaArea" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.28} />
-                    <stop offset="95%" stopColor="var(--primary)" stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.25} />
-                <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={4} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
-                <Tooltip />
-                <Area type="monotone" dataKey="value" name="Demandes" stroke="var(--primary)" fill="url(#vireliaArea)" strokeWidth={2} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </ChartCard>
-
-          <ChartCard title="Répartition par statut" subtitle="Dossiers actuellement présents">
-            {dashboard.byStatus.length ? (
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={dashboard.byStatus} layout="vertical" margin={{ left: 4, right: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.25} />
-                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10 }} />
-                  <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 9 }} />
-                  <Tooltip />
-                  <Bar dataKey="value" name="Dossiers" fill="var(--primary)" radius={[0, 5, 5, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : <EmptyChart />}
-          </ChartCard>
-        </div>
-
-        <div className="mt-4 grid gap-4 lg:grid-cols-2">
-          <Panel title="À traiter en priorité" icon={AlertCircle}>
-            {dashboard.priority.length ? dashboard.priority.map((a) => (
-              <button key={a.id} type="button" onClick={() => openDetail(a.id)} className="flex w-full items-center justify-between gap-3 rounded-xl border border-border p-3 text-left transition hover:bg-muted/35">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold">{a.first_name} {a.last_name}</p>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{a.reference} · {programLabel(a.program)}</p>
-                </div>
-                <Badge className={`shrink-0 border-0 ${statusTone(a.status)}`}>{statusLabel(a.status)}</Badge>
-              </button>
-            )) : <p className="text-sm text-muted-foreground">Aucun dossier prioritaire pour le moment.</p>}
-          </Panel>
-
-          <Panel title="Activité récente" icon={TrendingUp}>
-            {dashboard.recent.length ? dashboard.recent.map((a) => (
-              <div key={a.id} className="flex items-center justify-between gap-3 border-b border-border/70 py-3 last:border-0">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">Nouvelle demande · {a.first_name} {a.last_name}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{new Date(a.created_at).toLocaleString("fr-FR")}</p>
-                </div>
-                <button type="button" className="text-xs font-semibold text-primary" onClick={() => openDetail(a.id)}>Ouvrir</button>
-              </div>
-            )) : <p className="text-sm text-muted-foreground">Aucune activité récente.</p>}
-          </Panel>
-        </div>
-
-        <ChartCard className="mt-4" title="Types de prêts" subtitle="Répartition réelle des solutions demandées">
-          {dashboard.byProgram.length ? (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={dashboard.byProgram} margin={{ left: 0, right: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.25} />
-                <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
-                <Tooltip />
-                <Bar dataKey="value" name="Demandes" fill="var(--primary)" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : <EmptyChart />}
-        </ChartCard>
-
-        <section className="surface-card mt-6 overflow-hidden">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
-            <div>
-              <h2 className="font-semibold">Toutes les demandes</h2>
-              <p className="mt-0.5 text-xs text-muted-foreground">Recherche, filtre et ouverture rapide des dossiers.</p>
+        {adminView === "active" ? (
+          <>
+            <div className="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <MetricCard icon={BarChart3} label="Dossiers actifs" value={dashboard.total} hint={`${dashboard.today} nouvelle(s) aujourd’hui`} />
+              <MetricCard icon={Clock3} label="À étudier" value={dashboard.verification + dashboard.analysis} hint={`${dashboard.verification} en vérification · ${dashboard.analysis} en analyse`} />
+              <MetricCard icon={FileClock} label="Documents à compléter" value={dashboard.documents} hint="Dossiers nécessitant une action client" />
+              <MetricCard icon={CircleDollarSign} label="Montant actif demandé" value={dashboard.mixedCurrencies ? "Multi-devise" : formatAmount(dashboard.totalAmount, dashboard.baseCurrency)} hint={`${dashboard.approved} approuvée(s) · ${dashboard.refused} refusée(s)`} />
             </div>
-            <div className="flex min-w-full flex-1 flex-wrap gap-3 lg:min-w-0 lg:max-w-3xl lg:justify-end">
-              <div className="relative min-w-64 flex-1">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Référence, nom, e-mail, pays, solution…" className="pl-9" />
-              </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-64"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tous les statuts</SelectItem>
-                  {APPLICATION_STATUSES.map((status) => <SelectItem key={status} value={status}>{statusLabel(status)}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] text-sm">
-              <thead className="bg-muted/40 text-left text-xs uppercase tracking-wider text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3">Référence</th><th className="px-4 py-3">Demandeur</th>
-                  <th className="px-4 py-3">Solution</th><th className="px-4 py-3">Montant</th>
-                  <th className="px-4 py-3">Statut</th><th className="px-4 py-3">Date</th><th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {appsQ.isPending ? (
-                  <tr><td colSpan={7} className="py-12 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></td></tr>
-                ) : filtered.length === 0 ? (
-                  <tr><td colSpan={7} className="py-12 text-center text-muted-foreground">Aucune demande trouvée.</td></tr>
-                ) : filtered.map((a) => (
-                  <tr key={a.id} className="hover:bg-muted/25">
-                    <td className="px-4 py-3 font-mono text-xs">{a.reference}</td>
-                    <td className="px-4 py-3"><p className="font-medium">{a.first_name} {a.last_name}</p><p className="text-xs text-muted-foreground">{a.email}</p></td>
-                    <td className="px-4 py-3">{programLabel(a.program)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">{formatAmount(a.amount, a.currency)}</td>
-                    <td className="px-4 py-3"><Badge className={`border-0 ${statusTone(a.status)}`}>{statusLabel(a.status)}</Badge></td>
-                    <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">{new Date(a.created_at).toLocaleDateString("fr-FR")}</td>
-                    <td className="px-4 py-3 text-right"><Button variant="ghost" size="sm" onClick={() => openDetail(a.id)}>Ouvrir <ChevronRight className="ml-1 h-4 w-4" /></Button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+            <div className="mt-6 grid gap-4 lg:grid-cols-[1.45fr_0.85fr]">
+              <ChartCard title="Demandes actives sur les 30 derniers jours" subtitle="Volume réel des dossiers actifs créés">
+                <ResponsiveContainer width="100%" height={260}>
+                  <AreaChart data={dashboard.last30} margin={{ left: -20, right: 8, top: 10 }}>
+                    <defs>
+                      <linearGradient id="vireliaArea" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.28} />
+                        <stop offset="95%" stopColor="var(--primary)" stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.25} />
+                    <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={4} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
+                    <Tooltip />
+                    <Area type="monotone" dataKey="value" name="Demandes" stroke="var(--primary)" fill="url(#vireliaArea)" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </ChartCard>
+
+              <ChartCard title="Répartition par statut" subtitle="Dossiers actifs actuellement présents">
+                {dashboard.byStatus.length ? (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart data={dashboard.byStatus} layout="vertical" margin={{ left: 4, right: 8 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.25} />
+                      <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10 }} />
+                      <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 9 }} />
+                      <Tooltip />
+                      <Bar dataKey="value" name="Dossiers" fill="var(--primary)" radius={[0, 5, 5, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : <EmptyChart />}
+              </ChartCard>
+            </div>
+
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <Panel title="À traiter en priorité" icon={AlertCircle}>
+                {dashboard.priority.length ? dashboard.priority.map((a) => (
+                  <button key={a.id} type="button" onClick={() => openDetail(a.id)} className="flex w-full items-center justify-between gap-3 rounded-xl border border-border p-3 text-left transition hover:bg-muted/35">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">{a.first_name} {a.last_name}</p>
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">{a.reference} · {programLabel(a.program)}</p>
+                    </div>
+                    <Badge className={`shrink-0 border-0 ${statusTone(a.status)}`}>{statusLabel(a.status)}</Badge>
+                  </button>
+                )) : <p className="text-sm text-muted-foreground">Aucun dossier prioritaire pour le moment.</p>}
+              </Panel>
+
+              <Panel title="Activité récente" icon={TrendingUp}>
+                {dashboard.recent.length ? dashboard.recent.map((a) => (
+                  <div key={a.id} className="flex items-center justify-between gap-3 border-b border-border/70 py-3 last:border-0">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">Nouvelle demande · {a.first_name} {a.last_name}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">{new Date(a.created_at).toLocaleString("fr-FR")}</p>
+                    </div>
+                    <button type="button" className="text-xs font-semibold text-primary" onClick={() => openDetail(a.id)}>Ouvrir</button>
+                  </div>
+                )) : <p className="text-sm text-muted-foreground">Aucune activité récente.</p>}
+              </Panel>
+            </div>
+
+            <ChartCard className="mt-4" title="Types de prêts" subtitle="Répartition réelle des solutions demandées sur les dossiers actifs">
+              {dashboard.byProgram.length ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={dashboard.byProgram} margin={{ left: 0, right: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.25} />
+                    <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
+                    <Tooltip />
+                    <Bar dataKey="value" name="Demandes" fill="var(--primary)" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : <EmptyChart />}
+            </ChartCard>
+
+            <section className="surface-card mt-6 overflow-hidden">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
+                <div>
+                  <h2 className="font-semibold">Demandes actives</h2>
+                  <p className="mt-0.5 text-xs text-muted-foreground">Recherche, filtre, ouverture et archivage des dossiers actifs.</p>
+                </div>
+                <div className="flex min-w-full flex-1 flex-wrap gap-3 lg:min-w-0 lg:max-w-3xl lg:justify-end">
+                  <div className="relative min-w-64 flex-1">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Référence, nom, e-mail, pays, solution…" className="pl-9" />
+                  </div>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-64"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tous les statuts</SelectItem>
+                      {APPLICATION_STATUSES.map((status) => <SelectItem key={status} value={status}>{statusLabel(status)}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[960px] text-sm">
+                  <thead className="bg-muted/40 text-left text-xs uppercase tracking-wider text-muted-foreground">
+                    <tr>
+                      <th className="px-4 py-3">Référence</th><th className="px-4 py-3">Demandeur</th>
+                      <th className="px-4 py-3">Solution</th><th className="px-4 py-3">Montant</th>
+                      <th className="px-4 py-3">Statut</th><th className="px-4 py-3">Date</th><th className="px-4 py-3" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {appsQ.isPending ? (
+                      <tr><td colSpan={7} className="py-12 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></td></tr>
+                    ) : filtered.length === 0 ? (
+                      <tr><td colSpan={7} className="py-12 text-center text-muted-foreground">Aucune demande trouvée.</td></tr>
+                    ) : filtered.map((a) => (
+                      <tr key={a.id} className="hover:bg-muted/25">
+                        <td className="px-4 py-3 font-mono text-xs">{a.reference}</td>
+                        <td className="px-4 py-3"><p className="font-medium">{a.first_name} {a.last_name}</p><p className="text-xs text-muted-foreground">{a.email}</p></td>
+                        <td className="px-4 py-3">{programLabel(a.program)}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">{formatAmount(a.amount, a.currency)}</td>
+                        <td className="px-4 py-3"><Badge className={`border-0 ${statusTone(a.status)}`}>{statusLabel(a.status)}</Badge></td>
+                        <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">{new Date(a.created_at).toLocaleDateString("fr-FR")}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="sm" onClick={() => openDetail(a.id)}>Ouvrir <ChevronRight className="ml-1 h-4 w-4" /></Button>
+                            <ArchiveApplicationButton application={a} />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </>
+        ) : (
+          <ArchivedApplicationsPanel onOpenDetail={openDetail} />
+        )}
       </main>
 
       <Dialog open={!!selectedId} onOpenChange={(open) => !open && setSelectedId(null)}>
@@ -491,6 +558,7 @@ function AdminPage() {
                 <DialogTitle className="flex flex-wrap items-center gap-3 text-xl">
                   {selected.first_name} {selected.last_name}
                   <Badge className={`border-0 ${statusTone(selected.status)}`}>{statusLabel(selected.status)}</Badge>
+                  {selected.archived_at && <Badge variant="outline">Archivé</Badge>}
                 </DialogTitle>
                 <DialogDescription className="font-mono">{selected.reference}</DialogDescription>
               </DialogHeader>
@@ -543,6 +611,11 @@ function AdminPage() {
                 )}
                 {!selected.contract_path && parseDocuments(selected.documents).length === 0 && <p className="text-sm text-muted-foreground">Aucun fichier disponible.</p>}
               </Section>
+
+              <ApplicationArchiveControls
+                application={selected}
+                onDone={() => setSelectedId(null)}
+              />
 
               <div className="grid gap-5 lg:grid-cols-2">
                 <Section title="Pilotage du dossier">
