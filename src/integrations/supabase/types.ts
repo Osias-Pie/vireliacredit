@@ -22,9 +22,7 @@ export type Database = {
           birth_date: string
           city: string | null
           company: string | null
-          contract_path: string | null
           country: string
-          country_of_residence: string | null
           created_at: string
           currency: string
           description: string | null
@@ -40,7 +38,6 @@ export type Database = {
           income: number | null
           language: string | null
           last_name: string
-          missing_public_requirements: string | null
           monthly_charges: number | null
           nationality: string | null
           other_income: number | null
@@ -49,7 +46,6 @@ export type Database = {
           processing_speed: string | null
           profession: string | null
           program: string
-          public_message: string | null
           purpose: string | null
           reference: string
           status: string
@@ -63,9 +59,7 @@ export type Database = {
           birth_date: string
           city?: string | null
           company?: string | null
-          contract_path?: string | null
           country: string
-          country_of_residence?: string | null
           created_at?: string
           currency: string
           description?: string | null
@@ -81,7 +75,6 @@ export type Database = {
           income?: number | null
           language?: string | null
           last_name: string
-          missing_public_requirements?: string | null
           monthly_charges?: number | null
           nationality?: string | null
           other_income?: number | null
@@ -90,7 +83,6 @@ export type Database = {
           processing_speed?: string | null
           profession?: string | null
           program: string
-          public_message?: string | null
           purpose?: string | null
           reference: string
           status?: string
@@ -104,9 +96,7 @@ export type Database = {
           birth_date?: string
           city?: string | null
           company?: string | null
-          contract_path?: string | null
           country?: string
-          country_of_residence?: string | null
           created_at?: string
           currency?: string
           description?: string | null
@@ -122,7 +112,6 @@ export type Database = {
           income?: number | null
           language?: string | null
           last_name?: string
-          missing_public_requirements?: string | null
           monthly_charges?: number | null
           nationality?: string | null
           other_income?: number | null
@@ -131,7 +120,6 @@ export type Database = {
           processing_speed?: string | null
           profession?: string | null
           program?: string
-          public_message?: string | null
           purpose?: string | null
           reference?: string
           status?: string
@@ -139,82 +127,6 @@ export type Database = {
           whatsapp?: string | null
         }
         Relationships: []
-      }
-      application_bank_details: {
-        Row: {
-          account_holder_name: string
-          application_id: string
-          bank_name: string
-          created_at: string
-          iban_account_number: string
-          id: string
-          swift_bic: string | null
-          updated_at: string
-        }
-        Insert: {
-          account_holder_name: string
-          application_id: string
-          bank_name: string
-          created_at?: string
-          iban_account_number: string
-          id?: string
-          swift_bic?: string | null
-          updated_at?: string
-        }
-        Update: {
-          account_holder_name?: string
-          application_id?: string
-          bank_name?: string
-          created_at?: string
-          iban_account_number?: string
-          id?: string
-          swift_bic?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "application_bank_details_application_id_fkey"
-            columns: ["application_id"]
-            isOneToOne: true
-            referencedRelation: "applications"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      application_status_history: {
-        Row: {
-          application_id: string
-          created_at: string
-          created_by: string | null
-          id: string
-          public_message: string | null
-          status: string
-        }
-        Insert: {
-          application_id: string
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          public_message?: string | null
-          status: string
-        }
-        Update: {
-          application_id?: string
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          public_message?: string | null
-          status?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "application_status_history_application_id_fkey"
-            columns: ["application_id"]
-            isOneToOne: false
-            referencedRelation: "applications"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       user_roles: {
         Row: {
@@ -249,11 +161,7 @@ export type Database = {
         }
         Returns: boolean
       }
-      get_application_tracking: {
-        Args: { p_email: string; p_reference: string }
-        Returns: Json
-      }
-      submit_application: { Args: { p: Json }; Returns: Json }
+      submit_application: { Args: { p: Json }; Returns: string }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
